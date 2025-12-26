@@ -104,12 +104,15 @@ func NewMenuModel() MenuModel {
 
 	// Create delegate
 	delegate := list.NewDefaultDelegate()
+	// Selected item: purple background with white text for title only
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
-		Foreground(lipgloss.Color("#F59E0B")).
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(lipgloss.Color("#7C3AED")).
 		Bold(true).
 		BorderLeftForeground(lipgloss.Color("#7C3AED"))
 	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
-		Foreground(lipgloss.Color("#9CA3AF"))
+		Foreground(lipgloss.Color("#9CA3AF")).
+		Border(lipgloss.Border{}, false, false, false, false)
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
 		Foreground(lipgloss.Color("#E5E7EB"))
 	delegate.Styles.NormalDesc = delegate.Styles.NormalDesc.
