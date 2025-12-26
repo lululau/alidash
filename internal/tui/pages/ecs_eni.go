@@ -10,6 +10,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
 )
@@ -42,19 +43,19 @@ func DefaultECSENIKeyMap() ECSENIKeyMap {
 // NewECSENIModel creates a new ECS ENI model
 func NewECSENIModel(instanceId string) ECSENIModel {
 	columns := []table.Column{
-		{Title: "弹性网卡 ID", Width: 24},
-		{Title: "名称", Width: 16},
-		{Title: "网卡类型", Width: 10},
-		{Title: "状态", Width: 8},
-		{Title: "IP 地址", Width: 16},
-		{Title: "专有网络", Width: 26},
-		{Title: "可用区", Width: 16},
-		{Title: "MAC 地址", Width: 18},
-		{Title: "创建时间", Width: 22},
+		{Title: i18n.T(i18n.KeyColENIID), Width: 24},
+		{Title: i18n.T(i18n.KeyColName), Width: 16},
+		{Title: i18n.T(i18n.KeyColENIType), Width: 10},
+		{Title: i18n.T(i18n.KeyColStatus), Width: 8},
+		{Title: i18n.T(i18n.KeyColPrivateIP), Width: 16},
+		{Title: i18n.T(i18n.KeyLabelVPC), Width: 26},
+		{Title: i18n.T(i18n.KeyColZone), Width: 16},
+		{Title: i18n.T(i18n.KeyColMAC), Width: 18},
+		{Title: i18n.T(i18n.KeyColCreatedAt), Width: 22},
 	}
 
 	return ECSENIModel{
-		table:      components.NewTableModel(columns, "弹性网卡列表"),
+		table:      components.NewTableModel(columns, i18n.T(i18n.KeyPageECSENIs)),
 		instanceId: instanceId,
 		keys:       DefaultECSENIKeyMap(),
 	}
@@ -194,9 +195,9 @@ func (m ECSENIModel) View() string {
 func (m ECSENIModel) formatNICType(nicType string) string {
 	switch strings.ToLower(nicType) {
 	case "primary":
-		return "主网卡"
+		return i18n.T(i18n.KeyENIPrimary)
 	case "secondary":
-		return "辅助网卡"
+		return i18n.T(i18n.KeyENISecondary)
 	default:
 		return nicType
 	}
@@ -205,17 +206,17 @@ func (m ECSENIModel) formatNICType(nicType string) string {
 func (m ECSENIModel) formatStatus(status string) string {
 	switch strings.ToLower(status) {
 	case "available":
-		return "可用"
+		return i18n.T(i18n.KeyENIAvailable)
 	case "inuse":
-		return "已绑定"
+		return i18n.T(i18n.KeyENIInUse)
 	case "attaching":
-		return "绑定中"
+		return i18n.T(i18n.KeyENIAttaching)
 	case "detaching":
-		return "解绑中"
+		return i18n.T(i18n.KeyENIDetaching)
 	case "creating":
-		return "创建中"
+		return i18n.T(i18n.KeyStatusCreating)
 	case "deleting":
-		return "删除中"
+		return i18n.T(i18n.KeyENIDeleting)
 	default:
 		return status
 	}
@@ -226,7 +227,7 @@ func (m ECSENIModel) GetSecurityGroups(eni ecs.NetworkInterfaceSet) string {
 	if len(eni.SecurityGroupIds.SecurityGroupId) == 0 {
 		return "-"
 	}
-	return fmt.Sprintf("%d 个安全组", len(eni.SecurityGroupIds.SecurityGroupId))
+	return fmt.Sprintf(i18n.T(i18n.KeyCountSG), len(eni.SecurityGroupIds.SecurityGroupId))
 }
 
 // Search searches in the list

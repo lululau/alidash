@@ -9,6 +9,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/slb"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/service"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
@@ -385,14 +386,14 @@ func DefaultSLBVServerGroupsKeyMap() SLBVServerGroupsKeyMap {
 // NewSLBVServerGroupsModel creates a new SLB VServer groups model
 func NewSLBVServerGroupsModel() SLBVServerGroupsModel {
 	columns := []table.Column{
-		{Title: "服务器组ID/名称", Width: 45},
-		{Title: "关联监听", Width: 15},
-		{Title: "关联转发策略", Width: 40},
-		{Title: "后端服务器数量", Width: 14},
+		{Title: i18n.T(i18n.KeyColServerGroupIDName), Width: 45},
+		{Title: i18n.T(i18n.KeyColAssocListeners), Width: 15},
+		{Title: i18n.T(i18n.KeyColAssocRules), Width: 40},
+		{Title: i18n.T(i18n.KeyColBackendCount), Width: 14},
 	}
 
 	return SLBVServerGroupsModel{
-		table: components.NewTableModel(columns, "虚拟服务器组"),
+		table: components.NewTableModel(columns, i18n.T(i18n.KeySLBVServerGroupList)),
 		keys:  DefaultSLBVServerGroupsKeyMap(),
 	}
 }
@@ -646,14 +647,14 @@ func DefaultSLBForwardingRulesKeyMap() SLBForwardingRulesKeyMap {
 // NewSLBForwardingRulesModel creates a new SLB forwarding rules model
 func NewSLBForwardingRulesModel() SLBForwardingRulesModel {
 	columns := []table.Column{
-		{Title: "域名", Width: 35},
-		{Title: "URL", Width: 15},
-		{Title: "虚拟服务器组", Width: 30},
-		{Title: "备注", Width: 20},
+		{Title: i18n.T(i18n.KeyColDomain), Width: 35},
+		{Title: i18n.T(i18n.KeyColURL), Width: 15},
+		{Title: i18n.T(i18n.KeyColVServerGroup), Width: 30},
+		{Title: i18n.T(i18n.KeyColRemark), Width: 20},
 	}
 
 	return SLBForwardingRulesModel{
-		table: components.NewTableModel(columns, "转发策略列表"),
+		table: components.NewTableModel(columns, i18n.T(i18n.KeySLBForwardingRules)),
 		keys:  DefaultSLBForwardingRulesKeyMap(),
 	}
 }
@@ -802,16 +803,16 @@ func DefaultSLBDefaultServersKeyMap() SLBDefaultServersKeyMap {
 // NewSLBDefaultServersModel creates a new SLB default servers model
 func NewSLBDefaultServersModel() SLBDefaultServersModel {
 	columns := []table.Column{
-		{Title: "云服务器ID/名称", Width: 35},
-		{Title: "可用区", Width: 18},
+		{Title: i18n.T(i18n.KeyColServerIDName), Width: 35},
+		{Title: i18n.T(i18n.KeyColZone), Width: 18},
 		{Title: "VPC", Width: 26},
-		{Title: "公网/内网IP地址", Width: 30},
-		{Title: "状态", Width: 10},
-		{Title: "权重", Width: 8},
+		{Title: i18n.T(i18n.KeyColPublicPrivateIP), Width: 30},
+		{Title: i18n.T(i18n.KeyColStatus), Width: 10},
+		{Title: i18n.T(i18n.KeyColWeight), Width: 8},
 	}
 
 	return SLBDefaultServersModel{
-		table: components.NewTableModel(columns, "默认服务器组"),
+		table: components.NewTableModel(columns, i18n.T(i18n.KeySLBDefaultServerGroup)),
 		keys:  DefaultSLBDefaultServersKeyMap(),
 	}
 }

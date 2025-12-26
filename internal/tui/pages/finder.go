@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/service"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
@@ -151,8 +152,8 @@ func (m *FinderModel) buildSections() {
 
 	// ECS Instances Section - always show
 	ecsSection := FinderSection{
-		Title:     fmt.Sprintf("ECS 实例 (%d)", len(m.result.ECSInstances)),
-		Columns:   []string{"实例 ID", "名称", "公网 IP", "私网 IP", "状态"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderECS), len(m.result.ECSInstances)),
+		Columns:   []string{i18n.T(i18n.KeyColInstanceID), i18n.T(i18n.KeyColName), i18n.T(i18n.KeyColPublicIP), i18n.T(i18n.KeyColPrivateIP), i18n.T(i18n.KeyColStatus)},
 		ColWidths: []int{24, 20, 16, 16, 10},
 		PageType:  types.PageECSDetail,
 	}
@@ -180,15 +181,15 @@ func (m *FinderModel) buildSections() {
 
 	// ENI Section - always show
 	eniSection := FinderSection{
-		Title:     fmt.Sprintf("弹性网卡 (%d)", len(m.result.ENIs)),
-		Columns:   []string{"网卡 ID", "私网 IP", "类型", "状态", "绑定实例"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderENI), len(m.result.ENIs)),
+		Columns:   []string{i18n.T(i18n.KeyColENIID), i18n.T(i18n.KeyColPrivateIP), i18n.T(i18n.KeyColType), i18n.T(i18n.KeyColStatus), i18n.T(i18n.KeyColAttachedInst)},
 		ColWidths: []int{24, 16, 10, 10, 24},
 		PageType:  types.PageECSJSONDetail,
 	}
 	for _, eni := range m.result.ENIs {
-		eniType := "辅助网卡"
+		eniType := i18n.T(i18n.KeyENISecondary)
 		if eni.Type == "Primary" {
-			eniType = "主网卡"
+			eniType = i18n.T(i18n.KeyENIPrimary)
 		}
 		eniSection.Rows = append(eniSection.Rows, []string{
 			eni.NetworkInterfaceId,
@@ -203,8 +204,8 @@ func (m *FinderModel) buildSections() {
 
 	// SLB Section - always show
 	slbSection := FinderSection{
-		Title:     fmt.Sprintf("负载均衡 (%d)", len(m.result.SLBInstances)),
-		Columns:   []string{"SLB ID", "名称", "IP 地址", "类型", "状态"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderSLB), len(m.result.SLBInstances)),
+		Columns:   []string{i18n.T(i18n.KeyColSLBID), i18n.T(i18n.KeyColName), i18n.T(i18n.KeyColAddress), i18n.T(i18n.KeyColType), i18n.T(i18n.KeyColStatus)},
 		ColWidths: []int{24, 20, 16, 16, 10},
 		PageType:  types.PageSLBDetail,
 	}
@@ -222,8 +223,8 @@ func (m *FinderModel) buildSections() {
 
 	// DNS Records Section - always show
 	dnsSection := FinderSection{
-		Title:     fmt.Sprintf("DNS 记录 (%d)", len(m.result.DNSRecords)),
-		Columns:   []string{"域名", "主机记录", "类型", "记录值", "TTL"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderDNS), len(m.result.DNSRecords)),
+		Columns:   []string{i18n.T(i18n.KeyColDomain), i18n.T(i18n.KeyColRR), i18n.T(i18n.KeyColType), i18n.T(i18n.KeyColRecordValue), i18n.T(i18n.KeyColTTL)},
 		ColWidths: []int{24, 20, 8, 20, 8},
 		PageType:  types.PageECSJSONDetail,
 	}
@@ -241,8 +242,8 @@ func (m *FinderModel) buildSections() {
 
 	// RDS Section - always show
 	rdsSection := FinderSection{
-		Title:     fmt.Sprintf("RDS 实例 (%d)", len(m.result.RDSInstances)),
-		Columns:   []string{"实例 ID", "描述", "引擎", "内网地址", "外网地址", "状态"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderRDS), len(m.result.RDSInstances)),
+		Columns:   []string{i18n.T(i18n.KeyColInstanceID), i18n.T(i18n.KeyColDescription), i18n.T(i18n.KeyColEngine), i18n.T(i18n.KeyColConnString), i18n.T(i18n.KeyColConnString), i18n.T(i18n.KeyColStatus)},
 		ColWidths: []int{24, 16, 12, 30, 30, 10},
 		PageType:  types.PageRDSDetail,
 	}
@@ -269,8 +270,8 @@ func (m *FinderModel) buildSections() {
 
 	// Redis Section - always show
 	redisSection := FinderSection{
-		Title:     fmt.Sprintf("Redis 实例 (%d)", len(m.result.RedisInstances)),
-		Columns:   []string{"实例 ID", "名称", "连接地址", "私网 IP", "状态"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderRedis), len(m.result.RedisInstances)),
+		Columns:   []string{i18n.T(i18n.KeyColInstanceID), i18n.T(i18n.KeyColName), i18n.T(i18n.KeyColConnDomain), i18n.T(i18n.KeyColPrivateIP), i18n.T(i18n.KeyColStatus)},
 		ColWidths: []int{24, 20, 30, 16, 10},
 		PageType:  types.PageRedisDetail,
 	}
@@ -288,20 +289,20 @@ func (m *FinderModel) buildSections() {
 
 	// RocketMQ Section - always show
 	rocketmqSection := FinderSection{
-		Title:     fmt.Sprintf("RocketMQ 实例 (%d)", len(m.result.RocketMQInstances)),
-		Columns:   []string{"实例 ID", "名称", "状态"},
+		Title:     fmt.Sprintf("%s (%d)", i18n.T(i18n.KeyFinderRocketMQ), len(m.result.RocketMQInstances)),
+		Columns:   []string{i18n.T(i18n.KeyColInstanceID), i18n.T(i18n.KeyColName), i18n.T(i18n.KeyColStatus)},
 		ColWidths: []int{30, 30, 12},
 		PageType:  types.PageRocketMQDetail,
 	}
 	for _, inst := range m.result.RocketMQInstances {
-		status := "未知"
+		status := i18n.T(i18n.KeyStatusUnknown)
 		switch inst.InstanceStatus {
 		case 0:
-			status = "创建中"
+			status = i18n.T(i18n.KeyStatusCreating)
 		case 2:
-			status = "运行中"
+			status = i18n.T(i18n.KeyStatusRunning)
 		case 5:
-			status = "已释放"
+			status = i18n.T(i18n.KeyStatusReleased)
 		}
 		rocketmqSection.Rows = append(rocketmqSection.Rows, []string{
 			inst.InstanceId,
@@ -456,7 +457,7 @@ func (m FinderModel) prevSection() FinderModel {
 // View implements tea.Model
 func (m FinderModel) View() string {
 	if m.result == nil {
-		return "No results"
+		return i18n.T(i18n.KeyFinderNoMatch)
 	}
 
 	var b strings.Builder
@@ -466,10 +467,10 @@ func (m FinderModel) View() string {
 	if len(m.result.ResolvedIPs) > 0 {
 		query = fmt.Sprintf("%s → %s", m.result.Query, strings.Join(m.result.ResolvedIPs, ", "))
 	}
-	b.WriteString(m.styles.Title.Render(fmt.Sprintf("资源查找结果: %s", query)))
+	b.WriteString(m.styles.Title.Render(fmt.Sprintf("%s: %s", i18n.T(i18n.KeyFinderResult), query)))
 	b.WriteString("\n")
 	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Bold(true).
-		Render(fmt.Sprintf("共找到 %d 个匹配资源", m.result.TotalCount())))
+		Render(fmt.Sprintf(i18n.T(i18n.KeyFinderTotalMatches), m.result.TotalCount())))
 	b.WriteString("\n\n")
 
 	// Calculate section width
@@ -535,7 +536,7 @@ func (m FinderModel) renderSection(section FinderSection, isFocused bool, width 
 
 	// Render data rows or empty message
 	if len(section.Rows) == 0 {
-		emptyMsg := padStr("暂无匹配数据", totalWidth-2)
+		emptyMsg := padStr(i18n.T(i18n.KeyFinderNoMatch), totalWidth-2)
 		b.WriteString(m.styles.Empty.Render(emptyMsg))
 	} else {
 		for j, row := range section.Rows {

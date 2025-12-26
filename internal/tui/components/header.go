@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
+
+	"aliyun-tui-viewer/internal/i18n"
 )
 
 // HeaderModel represents the header bar at the top
@@ -83,8 +85,8 @@ func (m HeaderModel) View() string {
 
 	// Profile and Region
 	sep := m.styles.Separator.Render(" | ")
-	profilePart := m.styles.Profile.Render(fmt.Sprintf("Profile: %s", m.profile))
-	regionPart := m.styles.Region.Render(fmt.Sprintf("Region: %s", m.region))
+	profilePart := m.styles.Profile.Render(fmt.Sprintf("%s: %s", i18n.T(i18n.KeyHeaderProfile), m.profile))
+	regionPart := m.styles.Region.Render(fmt.Sprintf("%s: %s", i18n.T(i18n.KeyHeaderRegion), m.region))
 
 	content := titlePart + sep + profilePart + sep + regionPart
 

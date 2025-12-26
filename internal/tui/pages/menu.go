@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/tui/types"
 )
 
@@ -92,14 +93,14 @@ func DefaultMenuKeyMap() MenuKeyMap {
 // NewMenuModel creates a new menu model
 func NewMenuModel() MenuModel {
 	items := []list.Item{
-		MenuItem{title: "(s) ECS Instances", description: "View ECS instances", shortcut: 's', page: types.PageECSList},
-		MenuItem{title: "(g) Security Groups", description: "View ECS security groups", shortcut: 'g', page: types.PageSecurityGroups},
-		MenuItem{title: "(d) DNS Management", description: "View AliDNS domains and records", shortcut: 'd', page: types.PageDNSDomains},
-		MenuItem{title: "(b) SLB Instances", description: "View SLB instances", shortcut: 'b', page: types.PageSLBList},
-		MenuItem{title: "(o) OSS Management", description: "Browse OSS buckets and objects", shortcut: 'o', page: types.PageOSSBuckets},
-		MenuItem{title: "(r) RDS Instances", description: "View RDS instances", shortcut: 'r', page: types.PageRDSList},
-		MenuItem{title: "(i) Redis Instances", description: "View Redis instances", shortcut: 'i', page: types.PageRedisList},
-		MenuItem{title: "(m) RocketMQ Instances", description: "View RocketMQ instances", shortcut: 'm', page: types.PageRocketMQList},
+		MenuItem{title: i18n.T(i18n.KeyMenuECS), description: i18n.T(i18n.KeyMenuECSDesc), shortcut: 's', page: types.PageECSList},
+		MenuItem{title: i18n.T(i18n.KeyMenuSG), description: i18n.T(i18n.KeyMenuSGDesc), shortcut: 'g', page: types.PageSecurityGroups},
+		MenuItem{title: i18n.T(i18n.KeyMenuDNS), description: i18n.T(i18n.KeyMenuDNSDesc), shortcut: 'd', page: types.PageDNSDomains},
+		MenuItem{title: i18n.T(i18n.KeyMenuSLB), description: i18n.T(i18n.KeyMenuSLBDesc), shortcut: 'b', page: types.PageSLBList},
+		MenuItem{title: i18n.T(i18n.KeyMenuOSS), description: i18n.T(i18n.KeyMenuOSSDesc), shortcut: 'o', page: types.PageOSSBuckets},
+		MenuItem{title: i18n.T(i18n.KeyMenuRDS), description: i18n.T(i18n.KeyMenuRDSDesc), shortcut: 'r', page: types.PageRDSList},
+		MenuItem{title: i18n.T(i18n.KeyMenuRedis), description: i18n.T(i18n.KeyMenuRedisDesc), shortcut: 'i', page: types.PageRedisList},
+		MenuItem{title: i18n.T(i18n.KeyMenuRocketMQ), description: i18n.T(i18n.KeyMenuRocketMQDesc), shortcut: 'm', page: types.PageRocketMQList},
 	}
 
 	// Create delegate

@@ -11,6 +11,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/tui/components"
 )
 
@@ -57,15 +58,15 @@ type ECSDetailModel struct {
 
 // ECSDetailKeyMap defines key bindings for ECS detail view
 type ECSDetailKeyMap struct {
-	Up         key.Binding
-	Down       key.Binding
+	Up          key.Binding
+	Down        key.Binding
 	NextSection key.Binding
 	PrevSection key.Binding
-	PageUp     key.Binding
-	PageDown   key.Binding
-	Top        key.Binding
-	Bottom     key.Binding
-	Yank       key.Binding
+	PageUp      key.Binding
+	PageDown    key.Binding
+	Top         key.Binding
+	Bottom      key.Binding
+	Yank        key.Binding
 }
 
 // DefaultECSDetailKeyMap returns default key bindings
@@ -134,64 +135,64 @@ func (m *ECSDetailModel) buildSections() {
 
 	// Basic Info Section
 	basicInfo := DetailSection{
-		Title: "基本信息",
+		Title: i18n.T(i18n.KeySectionBasicInfo),
 		Rows: []DetailRow{
-			{Label: "实例 ID", Value: inst.InstanceId},
-			{Label: "实例名称", Value: inst.InstanceName},
-			{Label: "实例状态", Value: inst.Status},
-			{Label: "所在可用区", Value: inst.ZoneId},
-			{Label: "付费类型", Value: m.formatChargeType(inst.InstanceChargeType)},
-			{Label: "到期时间", Value: m.formatValue(inst.ExpiredTime)},
+			{Label: i18n.T(i18n.KeyLabelInstanceID), Value: inst.InstanceId},
+			{Label: i18n.T(i18n.KeyLabelInstanceName), Value: inst.InstanceName},
+			{Label: i18n.T(i18n.KeyLabelInstanceStatus), Value: inst.Status},
+			{Label: i18n.T(i18n.KeyLabelAvailZone), Value: inst.ZoneId},
+			{Label: i18n.T(i18n.KeyLabelChargeType), Value: m.formatChargeType(inst.InstanceChargeType)},
+			{Label: i18n.T(i18n.KeyLabelExpireTime), Value: m.formatValue(inst.ExpiredTime)},
 		},
 	}
 
 	// Config Info Section
 	configInfo := DetailSection{
-		Title: "配置信息",
+		Title: i18n.T(i18n.KeySectionConfigInfo),
 		Rows: []DetailRow{
-			{Label: "实例规格", Value: inst.InstanceType},
-			{Label: "CPU & 内存", Value: fmt.Sprintf("%d 核 (vCPU)  %d GiB", inst.Cpu, inst.Memory/1024)},
-			{Label: "公网 IP", Value: m.getPublicIP()},
-			{Label: "主私网 IP", Value: m.getPrivateIPs()},
-			{Label: "镜像 ID", Value: inst.ImageId},
-			{Label: "操作系统", Value: m.formatValue(inst.OSName)},
-			{Label: "专有网络", Value: m.formatValue(inst.VpcAttributes.VpcId)},
-			{Label: "虚拟交换机", Value: m.formatValue(inst.VpcAttributes.VSwitchId)},
-			{Label: "网络类型", Value: m.formatNetworkType(inst.InstanceNetworkType)},
-			{Label: "公网带宽", Value: fmt.Sprintf("入: %d Mbps / 出: %d Mbps", inst.InternetMaxBandwidthIn, inst.InternetMaxBandwidthOut)},
-			{Label: "带宽计费方式", Value: m.formatValue(inst.InternetChargeType)},
+			{Label: i18n.T(i18n.KeyLabelInstanceSpec), Value: inst.InstanceType},
+			{Label: i18n.T(i18n.KeyLabelCPUMemory), Value: fmt.Sprintf("%d vCPU / %d GiB", inst.Cpu, inst.Memory/1024)},
+			{Label: i18n.T(i18n.KeyColPublicIP), Value: m.getPublicIP()},
+			{Label: i18n.T(i18n.KeyColPrivateIP), Value: m.getPrivateIPs()},
+			{Label: i18n.T(i18n.KeyLabelImageID), Value: inst.ImageId},
+			{Label: i18n.T(i18n.KeyLabelOSName), Value: m.formatValue(inst.OSName)},
+			{Label: i18n.T(i18n.KeyLabelVPC), Value: m.formatValue(inst.VpcAttributes.VpcId)},
+			{Label: i18n.T(i18n.KeyLabelVSwitch), Value: m.formatValue(inst.VpcAttributes.VSwitchId)},
+			{Label: i18n.T(i18n.KeyLabelNetworkType), Value: m.formatNetworkType(inst.InstanceNetworkType)},
+			{Label: i18n.T(i18n.KeyLabelBandwidth), Value: fmt.Sprintf("In: %d Mbps / Out: %d Mbps", inst.InternetMaxBandwidthIn, inst.InternetMaxBandwidthOut)},
+			{Label: i18n.T(i18n.KeyLabelBandwidthCharge), Value: m.formatValue(inst.InternetChargeType)},
 		},
 	}
 
 	// Bound Resources Section
 	boundResources := DetailSection{
-		Title: "绑定资源",
+		Title: i18n.T(i18n.KeySectionBoundRes),
 		Rows: []DetailRow{
-			{Label: "安全组", Value: fmt.Sprintf("%d 个安全组", len(inst.SecurityGroupIds.SecurityGroupId))},
-			{Label: "弹性网卡", Value: fmt.Sprintf("%d 个", len(inst.NetworkInterfaces.NetworkInterface))},
-			{Label: "弹性公网 IP ID", Value: m.formatValue(inst.EipAddress.AllocationId)},
-			{Label: "辅助私网 IP", Value: m.getSecondaryIPs()},
+			{Label: i18n.T(i18n.KeyLabelSecurityGroup), Value: fmt.Sprintf(i18n.T(i18n.KeyCountSG), len(inst.SecurityGroupIds.SecurityGroupId))},
+			{Label: i18n.T(i18n.KeyFinderENI), Value: fmt.Sprintf(i18n.T(i18n.KeyCountENI), len(inst.NetworkInterfaces.NetworkInterface))},
+			{Label: i18n.T(i18n.KeyLabelEIPID), Value: m.formatValue(inst.EipAddress.AllocationId)},
+			{Label: i18n.T(i18n.KeyLabelSecondaryIP), Value: m.getSecondaryIPs()},
 		},
 	}
 
 	// Group Info Section
 	groupInfo := DetailSection{
-		Title: "分组信息",
+		Title: i18n.T(i18n.KeySectionGroupInfo),
 		Rows: []DetailRow{
-			{Label: "资源组", Value: m.formatValue(inst.ResourceGroupId)},
-			{Label: "标签", Value: m.getTags()},
+			{Label: i18n.T(i18n.KeyLabelResourceGroup), Value: m.formatValue(inst.ResourceGroupId)},
+			{Label: i18n.T(i18n.KeyLabelTags), Value: m.getTags()},
 		},
 	}
 
 	// Other Info Section
 	otherInfo := DetailSection{
-		Title: "其他信息",
+		Title: i18n.T(i18n.KeySectionOtherInfo),
 		Rows: []DetailRow{
-			{Label: "主机名", Value: m.formatValue(inst.HostName)},
-			{Label: "描述", Value: m.formatValue(inst.Description)},
-			{Label: "创建时间", Value: m.formatValue(inst.CreationTime)},
-			{Label: "密钥对", Value: m.formatValue(inst.KeyPairName)},
-			{Label: "序列号", Value: m.formatValue(inst.SerialNumber)},
+			{Label: i18n.T(i18n.KeyLabelHostname), Value: m.formatValue(inst.HostName)},
+			{Label: i18n.T(i18n.KeyColDescription), Value: m.formatValue(inst.Description)},
+			{Label: i18n.T(i18n.KeyColCreatedAt), Value: m.formatValue(inst.CreationTime)},
+			{Label: i18n.T(i18n.KeyLabelKeyPair), Value: m.formatValue(inst.KeyPairName)},
+			{Label: i18n.T(i18n.KeyLabelSerialNumber), Value: m.formatValue(inst.SerialNumber)},
 		},
 	}
 
@@ -311,7 +312,7 @@ func (m ECSDetailModel) prevSection() ECSDetailModel {
 // View implements tea.Model
 func (m ECSDetailModel) View() string {
 	if len(m.sections) == 0 {
-		return "Loading..."
+		return i18n.T(i18n.KeyActionLoading)
 	}
 
 	var sections []string
@@ -395,7 +396,7 @@ func (m ECSDetailModel) renderRow(row DetailRow, isSelected bool) string {
 
 		// For status, keep the indicator but use white text
 		value := row.Value
-		if row.Label == "实例状态" {
+		if row.Label == i18n.T(i18n.KeyLabelInstanceStatus) {
 			switch value {
 			case "Running":
 				value = "● " + value
@@ -433,7 +434,7 @@ func (m ECSDetailModel) renderRow(row DetailRow, isSelected bool) string {
 	styledValue := valueStyle.Render(value)
 
 	// Special styling for status
-	if row.Label == "实例状态" {
+	if row.Label == i18n.T(i18n.KeyLabelInstanceStatus) {
 		switch value {
 		case "Running":
 			styledValue = lipgloss.NewStyle().Foreground(successColor).Bold(true).Render("● " + value)
@@ -464,9 +465,9 @@ func (m ECSDetailModel) formatValue(value string) string {
 func (m ECSDetailModel) formatChargeType(chargeType string) string {
 	switch chargeType {
 	case "PrePaid":
-		return "包年包月"
+		return i18n.T(i18n.KeyChargePrePaid)
 	case "PostPaid":
-		return "按量付费"
+		return i18n.T(i18n.KeyChargePostPaid)
 	default:
 		return chargeType
 	}
@@ -475,9 +476,9 @@ func (m ECSDetailModel) formatChargeType(chargeType string) string {
 func (m ECSDetailModel) formatNetworkType(networkType string) string {
 	switch networkType {
 	case "vpc":
-		return "专有网络"
+		return i18n.T(i18n.KeyNetworkVPC)
 	case "classic":
-		return "经典网络"
+		return i18n.T(i18n.KeyNetworkClassic)
 	default:
 		return networkType
 	}

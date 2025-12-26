@@ -10,6 +10,7 @@ import (
 
 	"aliyun-tui-viewer/internal/client"
 	"aliyun-tui-viewer/internal/config"
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/service"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/pages"
@@ -173,7 +174,7 @@ func New() (*Model, error) {
 
 	// Initialize page models
 	m.menuPage = pages.NewMenuModel()
-	m.header = components.NewHeaderModel("Aliyun TUI Dashboard", currentProfile, cfg.RegionID)
+	m.header = components.NewHeaderModel(i18n.T(i18n.KeyAppTitle), currentProfile, cfg.RegionID)
 	m.modeLine = components.NewModeLineModel(currentProfile, cfg.RegionID, PageMenu)
 	m.search = components.NewSearchModel()
 	m.modal = components.NewModalModel()
@@ -228,9 +229,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.FindResource):
 			// Open resource finder input dialog with history
 			m.modal = components.NewInputModalWithHistory(
-				"资源查找",
-				"请输入 IP 地址或域名:",
-				"例如: 192.168.1.1 或 example.com",
+				i18n.T(i18n.KeyModalResourceFind),
+				i18n.T(i18n.KeyModalInputPrompt),
+				i18n.T(i18n.KeyModalInputExample),
 				m.inputHistory.Items,
 			)
 			return m, nil
@@ -341,7 +342,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update profile, region and mode line AFTER clearing cache
 		m.profile = msg.Profile
 		m.region = cfg.RegionID // Reset to profile's default region
-		m.header = m.header.SetProfile(msg.Profile).SetRegion(cfg.RegionID).SetTitle("Aliyun TUI Dashboard")
+		m.header = m.header.SetProfile(msg.Profile).SetRegion(cfg.RegionID).SetTitle(i18n.T(i18n.KeyAppTitle))
 		m.modeLine = m.modeLine.SetProfile(msg.Profile).SetRegion(cfg.RegionID)
 
 		// Update region service for new profile (cache is per-profile)
@@ -360,7 +361,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m = m.clearCachedData()
 		// Update profile, header and mode line AFTER clearing cache
 		m.profile = msg.ProfileName
-		m.header = m.header.SetProfile(msg.ProfileName).SetTitle("Aliyun TUI Dashboard")
+		m.header = m.header.SetProfile(msg.ProfileName).SetTitle(i18n.T(i18n.KeyAppTitle))
 		m.modeLine = m.modeLine.SetProfile(msg.ProfileName)
 		m.currentPage = PageMenu
 		m.previousPages = []PageType{}
@@ -394,7 +395,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Update region AFTER clearing cache
 		m.region = msg.Region
-		m.header = m.header.SetRegion(msg.Region).SetTitle("Aliyun TUI Dashboard")
+		m.header = m.header.SetRegion(msg.Region).SetTitle(i18n.T(i18n.KeyAppTitle))
 		m.modeLine = m.modeLine.SetRegion(msg.Region)
 
 		// Update clients and recreate services
@@ -503,13 +504,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ECSDisksLoadedMsg:
 		m.loading = false
 		m.ecsDiskPage = m.ecsDiskPage.SetData(msg.Disks)
-		m.ecsDiskPage = m.ecsDiskPage.SetTitle(fmt.Sprintf("云盘 - 实例: %s", msg.InstanceId))
+		m.ecsDiskPage = m.ecsDiskPage.SetTitle(fmt.Sprintf("%s - %s: %s", i18n.T(i18n.KeyPageECSDisks), i18n.T(i18n.KeyColInstanceID), msg.InstanceId))
 		m.ecsDiskPage = m.ecsDiskPage.SetSize(m.width, m.height-1)
 
 	case ECSNetworkInterfacesLoadedMsg:
 		m.loading = false
 		m.ecsENIPage = m.ecsENIPage.SetData(msg.NetworkInterfaces)
-		m.ecsENIPage = m.ecsENIPage.SetTitle(fmt.Sprintf("弹性网卡 - 实例: %s", msg.InstanceId))
+		m.ecsENIPage = m.ecsENIPage.SetTitle(fmt.Sprintf("%s - %s: %s", i18n.T(i18n.KeyPageECSENIs), i18n.T(i18n.KeyColInstanceID), msg.InstanceId))
 		m.ecsENIPage = m.ecsENIPage.SetSize(m.width, m.height-1)
 
 	case DNSDomainsLoadedMsg:
@@ -629,7 +630,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle copy messages
 	case CopiedMsg:
-		m.modal = components.NewInfoModal("Copied to clipboard!")
+		m.modal = components.NewInfoModal(i18n.T(i18n.KeyActionCopied))
 	}
 
 	// Forward non-key messages to modal if visible (for list filtering to work)
@@ -654,7 +655,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model
 func (m Model) View() string {
 	if m.width == 0 || m.height == 0 {
-		return "Loading..."
+		return i18n.T(i18n.KeyActionLoading)
 	}
 
 	var content string
@@ -735,7 +736,7 @@ func (m Model) View() string {
 
 	// Show loading spinner
 	if m.loading {
-		content = Center("Loading...", m.width, m.height-2)
+		content = Center(i18n.T(i18n.KeyActionLoading), m.width, m.height-2)
 	}
 
 	// Build the full view: header + content + modeline
@@ -1003,75 +1004,75 @@ func (m Model) navigateBack() (Model, tea.Cmd) {
 func (m Model) getPageTitle(page PageType) string {
 	switch page {
 	case PageMenu:
-		return "Aliyun TUI Dashboard"
+		return i18n.T(i18n.KeyPageMenu)
 	case PageECSList:
-		return "ECS Instances"
+		return i18n.T(i18n.KeyPageECSList)
 	case PageECSDetail:
-		return "ECS Detail"
+		return i18n.T(i18n.KeyPageECSDetail)
 	case PageECSJSONDetail:
-		return "ECS JSON Detail"
+		return i18n.T(i18n.KeyPageECSJSONDetail)
 	case PageECSDisks:
-		return "ECS Disks"
+		return i18n.T(i18n.KeyPageECSDisks)
 	case PageECSNetworkInterfaces:
-		return "ECS Network Interfaces"
+		return i18n.T(i18n.KeyPageECSENIs)
 	case PageSecurityGroups:
-		return "Security Groups"
+		return i18n.T(i18n.KeyPageSecurityGroups)
 	case PageSecurityGroupRules:
-		return "Security Group Rules"
+		return i18n.T(i18n.KeyPageSGRules)
 	case PageSecurityGroupInstances:
-		return "Security Group Instances"
+		return i18n.T(i18n.KeyPageSGInstances)
 	case PageInstanceSecurityGroups:
-		return "Instance Security Groups"
+		return i18n.T(i18n.KeyPageInstSGs)
 	case PageDNSDomains:
-		return "DNS Domains"
+		return i18n.T(i18n.KeyPageDNSDomains)
 	case PageDNSRecords:
-		return "DNS Records"
+		return i18n.T(i18n.KeyPageDNSRecords)
 	case PageSLBList:
-		return "SLB Instances"
+		return i18n.T(i18n.KeyPageSLBList)
 	case PageSLBDetail:
-		return "SLB Detail"
+		return i18n.T(i18n.KeyPageSLBDetail)
 	case PageSLBListeners:
-		return "SLB Listeners"
+		return i18n.T(i18n.KeyPageSLBListeners)
 	case PageSLBVServerGroups:
-		return "VServer Groups"
+		return i18n.T(i18n.KeyPageVServerGroups)
 	case PageSLBBackendServers:
-		return "Backend Servers"
+		return i18n.T(i18n.KeyPageBackendServers)
 	case PageSLBForwardingRules:
-		return "Forwarding Rules"
+		return i18n.T(i18n.KeyPageForwardRules)
 	case PageSLBDefaultServers:
-		return "Default Servers"
+		return i18n.T(i18n.KeyPageDefaultServers)
 	case PageOSSBuckets:
-		return "OSS Buckets"
+		return i18n.T(i18n.KeyPageOSSBuckets)
 	case PageOSSObjects:
-		return "OSS Objects"
+		return i18n.T(i18n.KeyPageOSSObjects)
 	case PageOSSObjectDetail:
-		return "OSS Object Detail"
+		return i18n.T(i18n.KeyPageOSSDetail)
 	case PageRDSList:
-		return "RDS Instances"
+		return i18n.T(i18n.KeyPageRDSList)
 	case PageRDSDetail:
-		return "RDS Detail"
+		return i18n.T(i18n.KeyPageRDSDetail)
 	case PageRDSDatabases:
-		return "RDS Databases"
+		return i18n.T(i18n.KeyPageRDSDatabases)
 	case PageRDSAccounts:
-		return "RDS Accounts"
+		return i18n.T(i18n.KeyPageRDSAccounts)
 	case PageRedisList:
-		return "Redis Instances"
+		return i18n.T(i18n.KeyPageRedisList)
 	case PageRedisDetail:
-		return "Redis Detail"
+		return i18n.T(i18n.KeyPageRedisDetail)
 	case PageRedisAccounts:
-		return "Redis Accounts"
+		return i18n.T(i18n.KeyPageRedisAccounts)
 	case PageRocketMQList:
-		return "RocketMQ Instances"
+		return i18n.T(i18n.KeyPageRocketMQList)
 	case PageRocketMQDetail:
-		return "RocketMQ Detail"
+		return i18n.T(i18n.KeyPageRocketMQDetail)
 	case PageRocketMQTopics:
-		return "RocketMQ Topics"
+		return i18n.T(i18n.KeyPageRocketMQTopics)
 	case PageRocketMQGroups:
-		return "RocketMQ Groups"
+		return i18n.T(i18n.KeyPageRocketMQGroups)
 	case PageResourceFinder:
-		return "Resource Finder"
+		return i18n.T(i18n.KeyPageResourceFinder)
 	default:
-		return "Aliyun TUI"
+		return i18n.T(i18n.KeyAppTitle)
 	}
 }
 

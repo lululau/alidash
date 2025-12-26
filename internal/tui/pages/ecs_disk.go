@@ -10,6 +10,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
 )
@@ -53,20 +54,20 @@ func DefaultECSDiskKeyMap() ECSDiskKeyMap {
 // NewECSDiskModel creates a new ECS disk model
 func NewECSDiskModel(instanceId string) ECSDiskModel {
 	columns := []table.Column{
-		{Title: "云盘 ID", Width: 24},
-		{Title: "名称", Width: 20},
-		{Title: "属性", Width: 8},
-		{Title: "状态", Width: 8},
-		{Title: "类型", Width: 22},
-		{Title: "大小", Width: 12},
-		{Title: "IOPS", Width: 10},
-		{Title: "云盘释放行为", Width: 14},
-		{Title: "付费类型", Width: 12},
-		{Title: "可卸载", Width: 8},
+		{Title: i18n.T(i18n.KeyColDiskID), Width: 24},
+		{Title: i18n.T(i18n.KeyColName), Width: 20},
+		{Title: i18n.T(i18n.KeyColDiskAttribute), Width: 8},
+		{Title: i18n.T(i18n.KeyColStatus), Width: 8},
+		{Title: i18n.T(i18n.KeyColType), Width: 22},
+		{Title: i18n.T(i18n.KeyColSize), Width: 12},
+		{Title: i18n.T(i18n.KeyColDiskIOPS), Width: 10},
+		{Title: i18n.T(i18n.KeyColDiskDeleteBehavior), Width: 14},
+		{Title: i18n.T(i18n.KeyLabelChargeType), Width: 12},
+		{Title: i18n.T(i18n.KeyColDiskPortable), Width: 8},
 	}
 
 	return ECSDiskModel{
-		table:      components.NewTableModel(columns, "云盘列表"),
+		table:      components.NewTableModel(columns, i18n.T(i18n.KeyPageECSDisks)),
 		instanceId: instanceId,
 		keys:       DefaultECSDiskKeyMap(),
 	}
@@ -105,18 +106,18 @@ func (m ECSDiskModel) SetData(disks []ecs.Disk) ECSDiskModel {
 		diskProp := m.formatDiskType(disk.Type)
 
 		// Delete with instance
-		deleteWithInst := "随实例释放"
+		deleteWithInst := i18n.T(i18n.KeyDiskDeleteWithInst)
 		if !disk.DeleteWithInstance {
-			deleteWithInst = "不随盘释放"
+			deleteWithInst = i18n.T(i18n.KeyDiskKeepAfterInst)
 		}
 
 		// Charge type
 		chargeType := m.formatChargeType(disk.DiskChargeType)
 
 		// Portable
-		portable := "支持"
+		portable := i18n.T(i18n.KeyDiskPortable)
 		if !disk.Portable {
-			portable = "不支持"
+			portable = i18n.T(i18n.KeyDiskNotPortable)
 		}
 
 		rows[i] = table.Row{
@@ -236,23 +237,23 @@ func (m ECSDiskModel) renderOverviewSection() string {
 		}
 	}
 
-	// Build left section - 使用率概览
-	leftTitle := titleStyle.Render("使用率概览")
+	// Build left section - Usage Overview
+	leftTitle := titleStyle.Render(i18n.T(i18n.KeySectionUsageOverview))
 	leftContent := lipgloss.JoinVertical(lipgloss.Left,
-		labelStyle.Render("云盘总数"),
-		valueStyle.Render(fmt.Sprintf("%d 个", totalDisks)),
+		labelStyle.Render(i18n.T(i18n.KeyLabelTotalDisks)),
+		valueStyle.Render(fmt.Sprintf(i18n.T(i18n.KeyCountDisks), totalDisks)),
 	)
 
-	// Build right section - 状态检测概览
-	rightTitle := titleStyle.Render("存储概览")
+	// Build right section - Storage Overview
+	rightTitle := titleStyle.Render(i18n.T(i18n.KeySectionStorageOverview))
 	rightContent := lipgloss.JoinVertical(lipgloss.Left,
-		labelStyle.Render("总存储容量"),
+		labelStyle.Render(i18n.T(i18n.KeyLabelTotalCapacity)),
 		valueStyle.Render(fmt.Sprintf("%d GiB", totalSize)),
 		"",
 		lipgloss.JoinHorizontal(lipgloss.Top,
-			labelStyle.Render("系统盘: "),
+			labelStyle.Render(i18n.T(i18n.KeyDiskSystem)+": "),
 			valueStyle.Render(fmt.Sprintf("%d", systemDisks)),
-			labelStyle.Render("  数据盘: "),
+			labelStyle.Render("  "+i18n.T(i18n.KeyDiskData)+": "),
 			valueStyle.Render(fmt.Sprintf("%d", dataDisks)),
 		),
 	)
@@ -280,19 +281,19 @@ func (m ECSDiskModel) renderOverviewSection() string {
 func (m ECSDiskModel) formatDiskCategory(category string) string {
 	switch category {
 	case "cloud":
-		return "普通云盘"
+		return i18n.T(i18n.KeyDiskCloud)
 	case "cloud_efficiency":
-		return "高效云盘"
+		return i18n.T(i18n.KeyDiskCloudEfficiency)
 	case "cloud_ssd":
-		return "SSD 云盘"
+		return i18n.T(i18n.KeyDiskCloudSSD)
 	case "cloud_essd":
-		return "ESSD 云盘"
+		return i18n.T(i18n.KeyDiskCloudEssd)
 	case "cloud_auto":
-		return "ESSD AutoPL 云盘"
+		return i18n.T(i18n.KeyDiskCloudEssdAuto)
 	case "cloud_essd_entry":
-		return "ESSD Entry 云盘"
+		return i18n.T(i18n.KeyDiskCloudEssdEntry)
 	case "ephemeral_ssd":
-		return "本地 SSD 盘"
+		return "Local SSD"
 	default:
 		return category
 	}
@@ -301,9 +302,9 @@ func (m ECSDiskModel) formatDiskCategory(category string) string {
 func (m ECSDiskModel) formatDiskType(diskType string) string {
 	switch diskType {
 	case "system":
-		return "系统盘"
+		return i18n.T(i18n.KeyDiskSystem)
 	case "data":
-		return "数据盘"
+		return i18n.T(i18n.KeyDiskData)
 	default:
 		return diskType
 	}
@@ -312,9 +313,9 @@ func (m ECSDiskModel) formatDiskType(diskType string) string {
 func (m ECSDiskModel) formatChargeType(chargeType string) string {
 	switch chargeType {
 	case "PrePaid":
-		return "包年包月"
+		return i18n.T(i18n.KeyChargePrePaid)
 	case "PostPaid":
-		return "按量付费"
+		return i18n.T(i18n.KeyChargePostPaid)
 	default:
 		return chargeType
 	}

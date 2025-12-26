@@ -284,42 +284,48 @@ func (s *FinderService) fetchAllENIs() ([]ecs.NetworkInterfaceSet, error) {
 	return allENIs, nil
 }
 
-// matchECSInstances finds ECS instances matching the given IPs
+// containsAny checks if target contains any of the search strings (case-insensitive)
+func containsAny(target string, searches []string) bool {
+	targetLower := strings.ToLower(target)
+	for _, s := range searches {
+		if s != "" && strings.Contains(targetLower, strings.ToLower(s)) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchECSInstances finds ECS instances matching the given IPs (using contains matching)
 func (s *FinderService) matchECSInstances(instances []ecs.Instance, ips []string) []ecs.Instance {
 	if len(ips) == 0 {
 		return nil
-	}
-
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
 	}
 
 	var matched []ecs.Instance
 	for _, inst := range instances {
 		// Check public IP
 		for _, pip := range inst.PublicIpAddress.IpAddress {
-			if ipSet[pip] {
+			if containsAny(pip, ips) {
 				matched = append(matched, inst)
 				goto next
 			}
 		}
 		// Check private IP (VPC)
 		for _, pip := range inst.VpcAttributes.PrivateIpAddress.IpAddress {
-			if ipSet[pip] {
+			if containsAny(pip, ips) {
 				matched = append(matched, inst)
 				goto next
 			}
 		}
 		// Check inner IP (classic)
 		for _, pip := range inst.InnerIpAddress.IpAddress {
-			if ipSet[pip] {
+			if containsAny(pip, ips) {
 				matched = append(matched, inst)
 				goto next
 			}
 		}
 		// Check EIP
-		if ipSet[inst.EipAddress.IpAddress] {
+		if containsAny(inst.EipAddress.IpAddress, ips) {
 			matched = append(matched, inst)
 			goto next
 		}
@@ -328,27 +334,22 @@ func (s *FinderService) matchECSInstances(instances []ecs.Instance, ips []string
 	return matched
 }
 
-// matchENIs finds ENIs matching the given IPs
+// matchENIs finds ENIs matching the given IPs (using contains matching)
 func (s *FinderService) matchENIs(enis []ecs.NetworkInterfaceSet, ips []string) []ecs.NetworkInterfaceSet {
 	if len(ips) == 0 {
 		return nil
 	}
 
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
-	}
-
 	var matched []ecs.NetworkInterfaceSet
 	for _, eni := range enis {
 		// Check primary private IP
-		if ipSet[eni.PrivateIpAddress] {
+		if containsAny(eni.PrivateIpAddress, ips) {
 			matched = append(matched, eni)
 			continue
 		}
 		// Check private IP sets
 		for _, pip := range eni.PrivateIpSets.PrivateIpSet {
-			if ipSet[pip.PrivateIpAddress] {
+			if containsAny(pip.PrivateIpAddress, ips) {
 				matched = append(matched, eni)
 				break
 			}
@@ -357,33 +358,23 @@ func (s *FinderService) matchENIs(enis []ecs.NetworkInterfaceSet, ips []string) 
 	return matched
 }
 
-// matchSLBInstances finds SLB instances matching the given IPs
+// matchSLBInstances finds SLB instances matching the given IPs (using contains matching)
 func (s *FinderService) matchSLBInstances(lbs []slb.LoadBalancer, ips []string) []slb.LoadBalancer {
 	if len(ips) == 0 {
 		return nil
 	}
 
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
-	}
-
 	var matched []slb.LoadBalancer
 	for _, lb := range lbs {
-		if ipSet[lb.Address] {
+		if containsAny(lb.Address, ips) {
 			matched = append(matched, lb)
 		}
 	}
 	return matched
 }
 
-// matchDNSRecords finds DNS records matching the given IPs or domain
+// matchDNSRecords finds DNS records matching the given IPs or domain (using contains matching)
 func (s *FinderService) matchDNSRecords(ips []string, domain string) ([]DNSRecordMatch, error) {
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
-	}
-
 	domains, err := s.dnsService.FetchDomains()
 	if err != nil {
 		return nil, err
@@ -397,8 +388,8 @@ func (s *FinderService) matchDNSRecords(ips []string, domain string) ([]DNSRecor
 		}
 
 		for _, r := range records {
-			// Match by IP value (A records)
-			if r.Type == "A" && ipSet[r.Value] {
+			// Match by IP value (A records) using contains matching
+			if r.Type == "A" && containsAny(r.Value, ips) {
 				matched = append(matched, DNSRecordMatch{
 					DomainName: d.DomainName,
 					Record:     r,
@@ -406,17 +397,18 @@ func (s *FinderService) matchDNSRecords(ips []string, domain string) ([]DNSRecor
 				continue
 			}
 			// Match by domain in record value (CNAME, etc.)
-			if domain != "" && strings.Contains(r.Value, domain) {
+			if domain != "" && strings.Contains(strings.ToLower(r.Value), strings.ToLower(domain)) {
 				matched = append(matched, DNSRecordMatch{
 					DomainName: d.DomainName,
 					Record:     r,
 				})
 				continue
 			}
-			// Match by subdomain
+			// Match by subdomain (using contains matching)
 			if domain != "" {
 				fullRecord := r.RR + "." + d.DomainName
-				if fullRecord == domain || r.RR == domain {
+				if strings.Contains(strings.ToLower(fullRecord), strings.ToLower(domain)) ||
+					strings.Contains(strings.ToLower(r.RR), strings.ToLower(domain)) {
 					matched = append(matched, DNSRecordMatch{
 						DomainName: d.DomainName,
 						Record:     r,
@@ -428,62 +420,49 @@ func (s *FinderService) matchDNSRecords(ips []string, domain string) ([]DNSRecor
 	return matched, nil
 }
 
-// matchRDSDetailedInstances finds RDS instances matching the given IPs or domain
+// matchRDSDetailedInstances finds RDS instances matching the given IPs or domain (using contains matching)
 func (s *FinderService) matchRDSDetailedInstances(instances []RDSInstanceDetail, ips []string, domain string) []RDSInstanceDetail {
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
-	}
-
 	var matched []RDSInstanceDetail
 	for _, inst := range instances {
 		// Check internal connection string
-		if domain != "" && strings.Contains(inst.InternalConnectionStr, domain) {
+		if domain != "" && strings.Contains(strings.ToLower(inst.InternalConnectionStr), strings.ToLower(domain)) {
 			matched = append(matched, inst)
 			continue
 		}
 		// Check public connection string
-		if domain != "" && strings.Contains(inst.PublicConnectionStr, domain) {
+		if domain != "" && strings.Contains(strings.ToLower(inst.PublicConnectionStr), strings.ToLower(domain)) {
 			matched = append(matched, inst)
 			continue
 		}
-		// Check internal IP
-		if ipSet[inst.InternalIP] {
+		// Check internal IP using contains matching
+		if containsAny(inst.InternalIP, ips) {
 			matched = append(matched, inst)
 			continue
 		}
-		// Check public IP
-		if ipSet[inst.PublicIP] {
+		// Check public IP using contains matching
+		if containsAny(inst.PublicIP, ips) {
 			matched = append(matched, inst)
 			continue
 		}
 		// Check if connection strings contain IP
-		for ip := range ipSet {
-			if strings.Contains(inst.InternalConnectionStr, ip) || strings.Contains(inst.PublicConnectionStr, ip) {
-				matched = append(matched, inst)
-				break
-			}
+		if containsAny(inst.InternalConnectionStr, ips) || containsAny(inst.PublicConnectionStr, ips) {
+			matched = append(matched, inst)
 		}
 	}
 	return matched
 }
 
-// matchRedisInstances finds Redis instances matching the given IPs or domain
+// matchRedisInstances finds Redis instances matching the given IPs or domain (using contains matching)
 func (s *FinderService) matchRedisInstances(instances []r_kvstore.KVStoreInstance, ips []string, domain string) []r_kvstore.KVStoreInstance {
-	ipSet := make(map[string]bool)
-	for _, ip := range ips {
-		ipSet[ip] = true
-	}
-
 	var matched []r_kvstore.KVStoreInstance
 	for _, inst := range instances {
 		// Check connection domain contains the domain
-		if domain != "" && strings.Contains(inst.ConnectionDomain, domain) {
+		if domain != "" && strings.Contains(strings.ToLower(inst.ConnectionDomain), strings.ToLower(domain)) {
 			matched = append(matched, inst)
 			continue
 		}
-		// Check private IP
-		if ipSet[inst.PrivateIp] {
+		// Check private IP using contains matching
+		if containsAny(inst.PrivateIp, ips) {
 			matched = append(matched, inst)
 		}
 	}

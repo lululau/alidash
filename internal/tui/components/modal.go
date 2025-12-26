@@ -9,6 +9,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"aliyun-tui-viewer/internal/i18n"
 )
 
 // ModalType represents different types of modals
@@ -113,7 +115,7 @@ func NewInfoModal(message string) ModalModel {
 	return ModalModel{
 		Visible:   true,
 		modalType: ModalTypeInfo,
-		title:     "Info",
+		title:     i18n.T(i18n.KeyModalInfo),
 		message:   message,
 		styles:    DefaultModalStyles(),
 		width:     60,
@@ -126,7 +128,7 @@ func NewErrorModal(message string) ModalModel {
 	return ModalModel{
 		Visible:   true,
 		modalType: ModalTypeError,
-		title:     "Error",
+		title:     i18n.T(i18n.KeyModalError),
 		message:   message,
 		styles:    DefaultModalStyles(),
 		width:     60,
@@ -139,7 +141,7 @@ func NewSuccessModal(message string) ModalModel {
 	return ModalModel{
 		Visible:   true,
 		modalType: ModalTypeSuccess,
-		title:     "Success",
+		title:     i18n.T(i18n.KeyModalSuccess),
 		message:   message,
 		styles:    DefaultModalStyles(),
 		width:     60,
@@ -155,7 +157,7 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 	for i, p := range profiles {
 		displayName := p
 		if p == currentProfile {
-			displayName = p + " (current)"
+			displayName = p + " (" + i18n.T(i18n.KeyModalCurrent) + ")"
 			selectedIdx = i
 		}
 		items[i] = profileItem{name: p, display: displayName}
@@ -178,7 +180,7 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 	listHeight := min(len(profiles)+6, 18)
 
 	l := list.New(items, delegate, 50, listHeight)
-	l.Title = "Select Profile"
+	l.Title = i18n.T(i18n.KeyModalSelectProfile)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true) // Enable filtering for search
 	l.SetShowHelp(true)         // Show help to indicate / for filter
@@ -200,7 +202,7 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 	return ModalModel{
 		Visible:        true,
 		modalType:      ModalTypeProfileSelect,
-		title:          "Select Profile",
+		title:          i18n.T(i18n.KeyModalSelectProfile),
 		profiles:       profiles,
 		currentProfile: currentProfile,
 		profileList:    l,
@@ -236,7 +238,7 @@ func NewRegionSelectionModal(currentRegion string) ModalModel {
 	return ModalModel{
 		Visible:        true,
 		modalType:      ModalTypeRegionSelect,
-		title:          "Select Region",
+		title:          i18n.T(i18n.KeyModalSelectRegion),
 		currentRegion:  currentRegion,
 		regionsLoading: true,
 		styles:         DefaultModalStyles(),
@@ -292,7 +294,7 @@ func (m ModalModel) SetRegions(regions []string, currentRegion string) ModalMode
 	for i, r := range regions {
 		displayName := r
 		if r == currentRegion {
-			displayName = r + " (current)"
+			displayName = r + " (" + i18n.T(i18n.KeyModalCurrent) + ")"
 			selectedIdx = i
 		}
 		items[i] = regionItem{id: r, display: displayName}
@@ -315,7 +317,7 @@ func (m ModalModel) SetRegions(regions []string, currentRegion string) ModalMode
 	listHeight := min(len(regions)+6, 18)
 
 	l := list.New(items, delegate, 55, listHeight)
-	l.Title = "Select Region"
+	l.Title = i18n.T(i18n.KeyModalSelectRegion)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(true) // Show help to indicate / for filter
@@ -569,11 +571,11 @@ func (m ModalModel) View() string {
 
 	case ModalTypeRegionSelect:
 		if m.regionsLoading {
-			content.WriteString(m.styles.Title.Render("Select Region"))
+			content.WriteString(m.styles.Title.Render(i18n.T(i18n.KeyModalSelectRegion)))
 			content.WriteString("\n\n")
-			content.WriteString(m.styles.Message.Render("Loading regions with resources..."))
+			content.WriteString(m.styles.Message.Render(i18n.T(i18n.KeyModalLoading)))
 			content.WriteString("\n\n")
-			content.WriteString(m.styles.Help.Render("Press Esc to cancel"))
+			content.WriteString(m.styles.Help.Render("Esc: " + i18n.T(i18n.KeyModalCancel)))
 			return m.styles.Container.
 				Width(m.width).
 				Render(content.String())
@@ -588,7 +590,7 @@ func (m ModalModel) View() string {
 		content.WriteString("\n\n")
 		content.WriteString(m.styles.Message.Render(m.message))
 		content.WriteString("\n\n")
-		content.WriteString(m.styles.Button.Render(" OK (Enter) "))
+		content.WriteString(m.styles.Button.Render(" " + i18n.T(i18n.KeyModalOK) + " (Enter) "))
 
 	case ModalTypeError:
 		title := m.styles.ErrorColor.Render("⚠ " + m.title)
@@ -596,7 +598,7 @@ func (m ModalModel) View() string {
 		content.WriteString("\n\n")
 		content.WriteString(m.styles.Message.Render(m.message))
 		content.WriteString("\n\n")
-		content.WriteString(m.styles.Button.Render(" OK (Enter) "))
+		content.WriteString(m.styles.Button.Render(" " + i18n.T(i18n.KeyModalOK) + " (Enter) "))
 
 	case ModalTypeSuccess:
 		title := m.styles.SuccessColor.Render("✓ " + m.title)
@@ -604,7 +606,7 @@ func (m ModalModel) View() string {
 		content.WriteString("\n\n")
 		content.WriteString(m.styles.Message.Render(m.message))
 		content.WriteString("\n\n")
-		content.WriteString(m.styles.Button.Render(" OK (Enter) "))
+		content.WriteString(m.styles.Button.Render(" " + i18n.T(i18n.KeyModalOK) + " (Enter) "))
 
 	case ModalTypeInput:
 		content.WriteString(m.styles.Title.Render(m.title))
@@ -615,9 +617,9 @@ func (m ModalModel) View() string {
 		}
 		content.WriteString(m.inputField.View())
 		content.WriteString("\n\n")
-		helpText := "Enter: 确认 | Esc: 取消"
+		helpText := "Enter: " + i18n.T(i18n.KeyModalConfirm) + " | Esc: " + i18n.T(i18n.KeyModalCancel)
 		if len(m.inputHistory) > 0 {
-			helpText += " | C-p/C-n: 历史"
+			helpText += " | C-p/C-n: " + i18n.T(i18n.KeyModalHistory)
 			if m.historyIndex >= 0 {
 				helpText += fmt.Sprintf(" [%d/%d]", m.historyIndex+1, len(m.inputHistory))
 			}

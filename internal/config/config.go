@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 )
 
 // ConfigProfile represents a single profile in the Aliyun CLI config
@@ -25,6 +26,7 @@ type AliyunConfig struct {
 	Profiles []ConfigProfile `json:"profiles"`
 	Editor   string          `json:"editor,omitempty"` // Global editor command
 	Pager    string          `json:"pager,omitempty"`  // Global pager command
+	Locale   string          `json:"locale,omitempty"` // UI language: zh_CN or en_US
 }
 
 // Config holds the application configuration
@@ -35,6 +37,7 @@ type Config struct {
 	OssEndpoint     string
 	Editor          string
 	Pager           string
+	Locale          string
 }
 
 // LoadAliyunConfig loads configuration from ~/.aliyun/config.json
@@ -113,6 +116,7 @@ func LoadAliyunConfig() (*Config, error) {
 		OssEndpoint:     ossEndpoint,
 		Editor:          config.Editor,
 		Pager:           config.Pager,
+		Locale:          config.Locale,
 	}, nil
 }
 
@@ -285,6 +289,70 @@ func GetPager() (string, error) {
 
 	// Default to less
 	return "less", nil
+}
+
+// Locale constants
+const (
+	LocaleEnUS = "en_US"
+	LocaleZhCN = "zh_CN"
+)
+
+// GetLocale returns the locale to use, following the priority:
+// 1. Config file "locale" field
+// 2. LC_ALL environment variable
+// 3. LC_MESSAGES environment variable
+// 4. LANG environment variable
+// 5. Default to "en_US"
+// Only zh_CN and en_US are supported, others default to en_US
+func GetLocale() string {
+	// First try config file
+	config, err := LoadAliyunConfig()
+	if err == nil && config.Locale != "" {
+		if normalizedLocale := normalizeLocale(config.Locale); normalizedLocale != "" {
+			return normalizedLocale
+		}
+	}
+
+	// Then check environment variables in order
+	envVars := []string{"LC_ALL", "LC_MESSAGES", "LANG"}
+	for _, env := range envVars {
+		if value := os.Getenv(env); value != "" {
+			if normalizedLocale := normalizeLocale(value); normalizedLocale != "" {
+				return normalizedLocale
+			}
+		}
+	}
+
+	// Default to English
+	return LocaleEnUS
+}
+
+// normalizeLocale normalizes locale string to supported values
+// Returns empty string if not recognized
+func normalizeLocale(locale string) string {
+	locale = strings.ToLower(strings.TrimSpace(locale))
+
+	// Check for Chinese variants
+	if strings.HasPrefix(locale, "zh_cn") ||
+		strings.HasPrefix(locale, "zh-cn") ||
+		strings.HasPrefix(locale, "zh_hans") ||
+		strings.HasPrefix(locale, "zh-hans") ||
+		locale == "zh" {
+		return LocaleZhCN
+	}
+
+	// Check for English variants
+	if strings.HasPrefix(locale, "en") {
+		return LocaleEnUS
+	}
+
+	// Not recognized
+	return ""
+}
+
+// IsChinese returns true if the current locale is Chinese
+func IsChinese() bool {
+	return GetLocale() == LocaleZhCN
 }
 
 // InputHistory manages input history for the finder

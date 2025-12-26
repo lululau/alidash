@@ -9,6 +9,7 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 
+	"aliyun-tui-viewer/internal/i18n"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
 )
@@ -60,18 +61,18 @@ func DefaultECSListKeyMap() ECSListKeyMap {
 // NewECSListModel creates a new ECS list model
 func NewECSListModel() ECSListModel {
 	columns := []table.Column{
-		{Title: "Instance ID", Width: 26},
-		{Title: "Status", Width: 10},
-		{Title: "Zone", Width: 18},
-		{Title: "CPU/RAM", Width: 10},
-		{Title: "Private IP", Width: 16},
-		{Title: "Public IP", Width: 16},
-		{Title: "Name", Width: 30},
-		{Title: "Expired", Width: 22},
+		{Title: i18n.T(i18n.KeyColInstanceID), Width: 26},
+		{Title: i18n.T(i18n.KeyColStatus), Width: 10},
+		{Title: i18n.T(i18n.KeyColZone), Width: 18},
+		{Title: i18n.T(i18n.KeyColCPURAM), Width: 10},
+		{Title: i18n.T(i18n.KeyColPrivateIP), Width: 16},
+		{Title: i18n.T(i18n.KeyColPublicIP), Width: 16},
+		{Title: i18n.T(i18n.KeyColName), Width: 30},
+		{Title: i18n.T(i18n.KeyColExpired), Width: 22},
 	}
 
 	return ECSListModel{
-		table: components.NewTableModel(columns, "ECS Instances"),
+		table: components.NewTableModel(columns, i18n.T(i18n.KeyPageECSList)),
 		keys:  DefaultECSListKeyMap(),
 	}
 }
