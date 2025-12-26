@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -46,12 +47,12 @@ type DetailSection struct {
 type ECSDetailModel struct {
 	instance       ecs.Instance
 	sections       []DetailSection
+	viewport       viewport.Model // Scrollable viewport
 	width          int
 	height         int
 	keys           ECSDetailKeyMap
 	currentSection int // Currently focused section
 	currentRow     int // Currently focused row within section
-	scrollOffset   int // Vertical scroll offset
 	yankLastTime   time.Time
 	yankCount      int
 }
@@ -116,8 +117,10 @@ func NewECSDetailModel(instance ecs.Instance) ECSDetailModel {
 	m := ECSDetailModel{
 		instance: instance,
 		keys:     DefaultECSDetailKeyMap(),
+		viewport: viewport.New(80, 20), // Initial size, will be updated by SetSize
 	}
 	m.buildSections()
+	m.updateViewportContent()
 	return m
 }
 
@@ -203,7 +206,52 @@ func (m *ECSDetailModel) buildSections() {
 func (m ECSDetailModel) SetSize(width, height int) ECSDetailModel {
 	m.width = width
 	m.height = height
+	m.viewport.Width = width
+	m.viewport.Height = height
+	m.updateViewportContent()
 	return m
+}
+
+// updateViewportContent renders all sections and sets the content to viewport
+func (m *ECSDetailModel) updateViewportContent() {
+	if len(m.sections) == 0 {
+		return
+	}
+
+	var sections []string
+	for i, section := range m.sections {
+		isFocused := (i == m.currentSection)
+		sections = append(sections, m.renderSection(section, i, isFocused))
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
+	m.viewport.SetContent(content)
+}
+
+// ensureSelectedVisible adjusts viewport scroll to keep selected row visible
+func (m *ECSDetailModel) ensureSelectedVisible() {
+	// Calculate approximate line position of current selection
+	// Each section has: 1 title line + 1 margin + rows + 3 border lines (top padding, bottom padding, margin)
+	linePos := 0
+	for i := 0; i < m.currentSection; i++ {
+		// Title (1) + margin (1) + border top (1) + padding (1) + rows + padding (1) + border bottom (1) + margin (1)
+		linePos += 1 + 1 + 1 + 1 + len(m.sections[i].Rows) + 1 + 1 + 1
+	}
+	// Add current section's title + margin + border + padding
+	linePos += 1 + 1 + 1 + 1
+	// Add current row position
+	linePos += m.currentRow
+
+	// Get viewport visible range
+	viewportTop := m.viewport.YOffset
+	viewportBottom := viewportTop + m.viewport.Height - 1
+
+	// Scroll if needed
+	if linePos < viewportTop {
+		m.viewport.SetYOffset(linePos)
+	} else if linePos > viewportBottom {
+		m.viewport.SetYOffset(linePos - m.viewport.Height + 1)
+	}
 }
 
 // Init implements tea.Model
@@ -213,24 +261,40 @@ func (m ECSDetailModel) Init() tea.Cmd {
 
 // Update implements tea.Model
 func (m ECSDetailModel) Update(msg tea.Msg) (ECSDetailModel, tea.Cmd) {
+	var cmd tea.Cmd
+	needsUpdate := false
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Down):
 			m = m.moveDown()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.Up):
 			m = m.moveUp()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.NextSection):
 			m = m.nextSection()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.PrevSection):
 			m = m.prevSection()
+			needsUpdate = true
+		case key.Matches(msg, m.keys.PageUp):
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
+		case key.Matches(msg, m.keys.PageDown):
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
 		case key.Matches(msg, m.keys.Top):
 			m.currentSection = 0
 			m.currentRow = 0
-			m.scrollOffset = 0
+			m.viewport.GotoTop()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.Bottom):
 			m.currentSection = len(m.sections) - 1
 			m.currentRow = len(m.sections[m.currentSection].Rows) - 1
+			m.viewport.GotoBottom()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.Yank):
 			// Handle double-y for yank
 			now := time.Now()
@@ -254,10 +318,22 @@ func (m ECSDetailModel) Update(msg tea.Msg) (ECSDetailModel, tea.Cmd) {
 					}
 				}
 			}
+		default:
+			// Delegate other keys to viewport for scrolling (mouse wheel, etc.)
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
 		}
+	default:
+		// Delegate other messages to viewport
+		m.viewport, cmd = m.viewport.Update(msg)
 	}
 
-	return m, nil
+	if needsUpdate {
+		m.updateViewportContent()
+		m.ensureSelectedVisible()
+	}
+
+	return m, cmd
 }
 
 // moveDown moves cursor down within section or to next section
@@ -314,21 +390,7 @@ func (m ECSDetailModel) View() string {
 	if len(m.sections) == 0 {
 		return i18n.T(i18n.KeyActionLoading)
 	}
-
-	var sections []string
-	for i, section := range m.sections {
-		isFocused := (i == m.currentSection)
-		sections = append(sections, m.renderSection(section, i, isFocused))
-	}
-
-	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
-
-	// Create a viewport-like container
-	viewportStyle := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height)
-
-	return viewportStyle.Render(content)
+	return m.viewport.View()
 }
 
 // renderSection renders a single section
