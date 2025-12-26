@@ -47,11 +47,12 @@ type Model struct {
 	instSGPage         pages.SecurityGroupsModel
 	dnsDomainsPage     pages.DNSDomainsModel
 	dnsRecordsPage     pages.DNSRecordsModel
-	slbListPage        pages.SLBListModel
-	slbDetailPage      pages.DetailModel
-	slbListenersPage   pages.SLBListenersModel
-	slbVServerPage     pages.SLBVServerGroupsModel
-	slbBackendPage     pages.SLBBackendServersModel
+	slbListPage             pages.SLBListModel
+	slbDetailPage           pages.DetailModel
+	slbListenersPage        pages.SLBListenersModel
+	slbVServerPage          pages.SLBVServerGroupsModel
+	slbBackendPage          pages.SLBBackendServersModel
+	slbForwardingRulesPage  pages.SLBForwardingRulesModel
 	ossBucketsPage     pages.OSSBucketsModel
 	ossObjectsPage     pages.OSSObjectsModel
 	ossDetailPage      pages.DetailModel
@@ -481,6 +482,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.slbBackendPage = m.slbBackendPage.SetData(msg.BackendServers, msg.VServerGroupId)
 		m.slbBackendPage = m.slbBackendPage.SetSize(m.width, m.height-1)
 
+	case SLBForwardingRulesLoadedMsg:
+		m.loading = false
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.SetData(msg.Rules, msg.LoadBalancerId, msg.ListenerPort, msg.ListenerProtocol)
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.SetSize(m.width, m.height-1)
+
 	case OSSBucketsLoadedMsg:
 		m.loading = false
 		m.ossBucketsPage = m.ossBucketsPage.SetData(msg.Buckets)
@@ -619,6 +625,8 @@ func (m Model) View() string {
 		content = m.slbVServerPage.View()
 	case PageSLBBackendServers:
 		content = m.slbBackendPage.View()
+	case PageSLBForwardingRules:
+		content = m.slbForwardingRulesPage.View()
 	case PageOSSBuckets:
 		content = m.ossBucketsPage.View()
 	case PageOSSObjects:
@@ -795,6 +803,12 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 			cmd = LoadSLBBackendServers(m.services.SLB, vsgId, m.clients.ECS)
 		}
 
+	case PageSLBForwardingRules:
+		if navData, ok := data.(pages.ListenerNavData); ok {
+			m.slbForwardingRulesPage = pages.NewSLBForwardingRulesModel()
+			cmd = LoadSLBForwardingRules(m.services.SLB, navData.LoadBalancerId, navData.ListenerPort, navData.ListenerProtocol)
+		}
+
 	case PageOSSBuckets:
 		m.ossBucketsPage = pages.NewOSSBucketsModel()
 		cmd = LoadOSSBuckets(m.services.OSS)
@@ -938,6 +952,8 @@ func (m Model) getPageTitle(page PageType) string {
 		return "VServer Groups"
 	case PageSLBBackendServers:
 		return "Backend Servers"
+	case PageSLBForwardingRules:
+		return "Forwarding Rules"
 	case PageOSSBuckets:
 		return "OSS Buckets"
 	case PageOSSObjects:
@@ -1027,6 +1043,9 @@ func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 	case PageSLBBackendServers:
 		m.slbBackendPage, cmd = m.slbBackendPage.Update(msg)
 
+	case PageSLBForwardingRules:
+		m.slbForwardingRulesPage, cmd = m.slbForwardingRulesPage.Update(msg)
+
 	case PageOSSBuckets:
 		m.ossBucketsPage, cmd = m.ossBucketsPage.Update(msg)
 
@@ -1110,6 +1129,8 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.slbVServerPage = m.slbVServerPage.SetSize(m.width, height)
 	case PageSLBBackendServers:
 		m.slbBackendPage = m.slbBackendPage.SetSize(m.width, height)
+	case PageSLBForwardingRules:
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.SetSize(m.width, height)
 	case PageOSSBuckets:
 		m.ossBucketsPage = m.ossBucketsPage.SetSize(m.width, height)
 	case PageOSSObjects:
@@ -1195,6 +1216,8 @@ func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
 		m.slbVServerPage = m.slbVServerPage.Search(query)
 	case PageSLBBackendServers:
 		m.slbBackendPage = m.slbBackendPage.Search(query)
+	case PageSLBForwardingRules:
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.Search(query)
 	case PageOSSBuckets:
 		m.ossBucketsPage = m.ossBucketsPage.Search(query)
 	case PageOSSObjects:
@@ -1263,6 +1286,8 @@ func (m Model) handleSearchNext() (Model, tea.Cmd) {
 		m.slbVServerPage = m.slbVServerPage.NextSearchMatch()
 	case PageSLBBackendServers:
 		m.slbBackendPage = m.slbBackendPage.NextSearchMatch()
+	case PageSLBForwardingRules:
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.NextSearchMatch()
 	case PageOSSBuckets:
 		m.ossBucketsPage = m.ossBucketsPage.NextSearchMatch()
 	case PageOSSObjects:
@@ -1331,6 +1356,8 @@ func (m Model) handleSearchPrev() (Model, tea.Cmd) {
 		m.slbVServerPage = m.slbVServerPage.PrevSearchMatch()
 	case PageSLBBackendServers:
 		m.slbBackendPage = m.slbBackendPage.PrevSearchMatch()
+	case PageSLBForwardingRules:
+		m.slbForwardingRulesPage = m.slbForwardingRulesPage.PrevSearchMatch()
 	case PageOSSBuckets:
 		m.ossBucketsPage = m.ossBucketsPage.PrevSearchMatch()
 	case PageOSSObjects:

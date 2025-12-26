@@ -21,6 +21,7 @@ const (
 	PageSLBListeners
 	PageSLBVServerGroups
 	PageSLBBackendServers
+	PageSLBForwardingRules
 	PageOSSBuckets
 	PageOSSObjects
 	PageOSSObjectDetail
@@ -74,6 +75,8 @@ func (p PageType) String() string {
 		return "SLB VServer Groups"
 	case PageSLBBackendServers:
 		return "SLB Backend Servers"
+	case PageSLBForwardingRules:
+		return "SLB Forwarding Rules"
 	case PageOSSBuckets:
 		return "OSS Buckets"
 	case PageOSSObjects:

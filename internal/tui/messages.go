@@ -34,6 +34,7 @@ const (
 	PageSLBListeners           = types.PageSLBListeners
 	PageSLBVServerGroups       = types.PageSLBVServerGroups
 	PageSLBBackendServers      = types.PageSLBBackendServers
+	PageSLBForwardingRules     = types.PageSLBForwardingRules
 	PageOSSBuckets             = types.PageOSSBuckets
 	PageOSSObjects             = types.PageOSSObjects
 	PageOSSObjectDetail        = types.PageOSSObjectDetail
@@ -152,6 +153,14 @@ type SLBVServerGroupsLoadedMsg struct {
 type SLBBackendServersLoadedMsg struct {
 	BackendServers []service.BackendServerDetail
 	VServerGroupId string
+}
+
+// SLBForwardingRulesLoadedMsg contains loaded forwarding rules
+type SLBForwardingRulesLoadedMsg struct {
+	Rules          []service.ForwardingRuleDetail
+	LoadBalancerId string
+	ListenerPort   int
+	ListenerProtocol string
 }
 
 // --- OSS Messages ---

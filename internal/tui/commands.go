@@ -192,6 +192,22 @@ func LoadSLBBackendServers(svc *service.SLBService, vServerGroupId string, ecsCl
 	}
 }
 
+// LoadSLBForwardingRules creates a command to load forwarding rules for a listener
+func LoadSLBForwardingRules(svc *service.SLBService, loadBalancerId string, listenerPort int, listenerProtocol string) tea.Cmd {
+	return func() tea.Msg {
+		rules, err := svc.FetchForwardingRules(loadBalancerId, listenerPort, listenerProtocol)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+		return SLBForwardingRulesLoadedMsg{
+			Rules:            rules,
+			LoadBalancerId:   loadBalancerId,
+			ListenerPort:     listenerPort,
+			ListenerProtocol: listenerProtocol,
+		}
+	}
+}
+
 // --- OSS Commands ---
 
 // LoadOSSBuckets creates a command to load OSS buckets

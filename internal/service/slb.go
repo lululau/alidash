@@ -274,6 +274,7 @@ type VServerGroupDetail struct {
 	VServerGroupName    string
 	BackendServerCount  int
 	AssociatedListeners []string // List of listener ports that use this VServer group
+	AssociatedRules     []string // List of forwarding rule IDs that use this VServer group
 }
 
 // FetchVServerGroups retrieves all virtual server groups for a specific SLB instance
@@ -304,6 +305,24 @@ func (s *SLBService) FetchDetailedVServerGroups(loadBalancerId string) ([]VServe
 		return nil, err
 	}
 
+	// Build a map of VServerGroupId -> associated rule IDs
+	vsgRulesMap := make(map[string][]string)
+
+	// Fetch forwarding rules for each HTTP/HTTPS listener
+	for _, listener := range listeners {
+		if listener.Protocol == "HTTP" || listener.Protocol == "HTTPS" {
+			rules, err := s.FetchForwardingRules(loadBalancerId, listener.Port, listener.Protocol)
+			if err != nil {
+				continue // Skip if we can't fetch rules
+			}
+			for _, rule := range rules {
+				if rule.VServerGroupId != "" {
+					vsgRulesMap[rule.VServerGroupId] = append(vsgRulesMap[rule.VServerGroupId], rule.RuleId)
+				}
+			}
+		}
+	}
+
 	var detailedVServerGroups []VServerGroupDetail
 
 	for _, vsg := range vServerGroups {
@@ -322,11 +341,15 @@ func (s *SLBService) FetchDetailedVServerGroups(loadBalancerId string) ([]VServe
 			}
 		}
 
+		// Get associated rules
+		associatedRules := vsgRulesMap[vsg.VServerGroupId]
+
 		detailedVServerGroups = append(detailedVServerGroups, VServerGroupDetail{
 			VServerGroupId:      vsg.VServerGroupId,
 			VServerGroupName:    vsg.VServerGroupName,
 			BackendServerCount:  len(backendServers),
 			AssociatedListeners: associatedListeners,
+			AssociatedRules:     associatedRules,
 		})
 	}
 
@@ -401,6 +424,57 @@ type ECSInstanceDetail struct {
 	InstanceName     string
 	PrivateIpAddress string
 	PublicIpAddress  string
+}
+
+// ForwardingRuleDetail contains detailed information about a forwarding rule
+type ForwardingRuleDetail struct {
+	RuleId           string
+	RuleName         string
+	Domain           string
+	Url              string
+	VServerGroupId   string
+	VServerGroupName string
+}
+
+// FetchForwardingRules retrieves all forwarding rules for a specific listener
+func (s *SLBService) FetchForwardingRules(loadBalancerId string, listenerPort int, listenerProtocol string) ([]ForwardingRuleDetail, error) {
+	// Forwarding rules only apply to HTTP/HTTPS listeners
+	if listenerProtocol != "HTTP" && listenerProtocol != "HTTPS" {
+		return nil, nil
+	}
+
+	request := slb.CreateDescribeRulesRequest()
+	request.Scheme = "https"
+	request.LoadBalancerId = loadBalancerId
+	request.ListenerPort = requests.NewInteger(listenerPort)
+	request.ListenerProtocol = listenerProtocol
+
+	response, err := s.client.DescribeRules(request)
+	if err != nil {
+		return nil, fmt.Errorf("describing forwarding rules for listener %s:%d: %w", loadBalancerId, listenerPort, err)
+	}
+
+	var rules []ForwardingRuleDetail
+	for _, rule := range response.Rules.Rule {
+		// Get VServer group name if available
+		vsgName := ""
+		if rule.VServerGroupId != "" {
+			if name, err := s.getVServerGroupName(rule.VServerGroupId); err == nil {
+				vsgName = name
+			}
+		}
+
+		rules = append(rules, ForwardingRuleDetail{
+			RuleId:           rule.RuleId,
+			RuleName:         rule.RuleName,
+			Domain:           rule.Domain,
+			Url:              rule.Url,
+			VServerGroupId:   rule.VServerGroupId,
+			VServerGroupName: vsgName,
+		})
+	}
+
+	return rules, nil
 }
 
 // getECSInstanceDetail retrieves ECS instance details for a given instance ID

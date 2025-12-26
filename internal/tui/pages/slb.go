@@ -181,6 +181,29 @@ type SLBListenersModel struct {
 	loadBalancerId string
 	width          int
 	height         int
+	keys           SLBListenersKeyMap
+}
+
+// SLBListenersKeyMap defines key bindings for SLB listeners
+type SLBListenersKeyMap struct {
+	Enter key.Binding
+}
+
+// DefaultSLBListenersKeyMap returns default key bindings
+func DefaultSLBListenersKeyMap() SLBListenersKeyMap {
+	return SLBListenersKeyMap{
+		Enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "forwarding rules"),
+		),
+	}
+}
+
+// ListenerNavData contains the data needed to navigate to forwarding rules
+type ListenerNavData struct {
+	LoadBalancerId string
+	ListenerPort   int
+	ListenerProtocol string
 }
 
 // NewSLBListenersModel creates a new SLB listeners model
@@ -197,7 +220,22 @@ func NewSLBListenersModel() SLBListenersModel {
 
 	return SLBListenersModel{
 		table: components.NewTableModel(columns, "SLB Listeners"),
+		keys:  DefaultSLBListenersKeyMap(),
 	}
+}
+
+// SelectedListener returns the selected listener
+func (m SLBListenersModel) SelectedListener() *service.ListenerDetail {
+	idx := m.table.SelectedRow()
+	if idx >= 0 && idx < len(m.listeners) {
+		return &m.listeners[idx]
+	}
+	return nil
+}
+
+// GetLoadBalancerId returns the load balancer ID
+func (m SLBListenersModel) GetLoadBalancerId() string {
+	return m.loadBalancerId
 }
 
 // SetData sets the listeners data
@@ -254,6 +292,28 @@ func (m SLBListenersModel) Init() tea.Cmd {
 
 // Update implements tea.Model
 func (m SLBListenersModel) Update(msg tea.Msg) (SLBListenersModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.keys.Enter):
+			if listener := m.SelectedListener(); listener != nil {
+				// Only HTTP/HTTPS listeners have forwarding rules
+				if listener.Protocol == "HTTP" || listener.Protocol == "HTTPS" {
+					return m, func() tea.Msg {
+						return types.NavigateMsg{
+							Page: types.PageSLBForwardingRules,
+							Data: ListenerNavData{
+								LoadBalancerId:   m.loadBalancerId,
+								ListenerPort:     listener.Port,
+								ListenerProtocol: listener.Protocol,
+							},
+						}
+					}
+				}
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
@@ -310,14 +370,14 @@ func DefaultSLBVServerGroupsKeyMap() SLBVServerGroupsKeyMap {
 // NewSLBVServerGroupsModel creates a new SLB VServer groups model
 func NewSLBVServerGroupsModel() SLBVServerGroupsModel {
 	columns := []table.Column{
-		{Title: "VServer Group ID", Width: 30},
-		{Title: "Name", Width: 30},
-		{Title: "Server Count", Width: 15},
-		{Title: "Associated Listeners", Width: 40},
+		{Title: "服务器组ID/名称", Width: 45},
+		{Title: "关联监听", Width: 15},
+		{Title: "关联转发策略", Width: 40},
+		{Title: "后端服务器数量", Width: 14},
 	}
 
 	return SLBVServerGroupsModel{
-		table: components.NewTableModel(columns, "SLB VServer Groups"),
+		table: components.NewTableModel(columns, "虚拟服务器组"),
 		keys:  DefaultSLBVServerGroupsKeyMap(),
 	}
 }
@@ -331,7 +391,14 @@ func (m SLBVServerGroupsModel) SetData(groups []service.VServerGroupDetail, load
 	rowData := make([]interface{}, len(groups))
 
 	for i, vsg := range groups {
-		listeners := "--"
+		// ID / Name combined (use space separator instead of newline)
+		idName := vsg.VServerGroupId
+		if vsg.VServerGroupName != "" {
+			idName = fmt.Sprintf("%s / %s", vsg.VServerGroupId, vsg.VServerGroupName)
+		}
+
+		// Associated listeners
+		listeners := "-"
 		if len(vsg.AssociatedListeners) > 0 {
 			listeners = ""
 			for j, l := range vsg.AssociatedListeners {
@@ -342,18 +409,30 @@ func (m SLBVServerGroupsModel) SetData(groups []service.VServerGroupDetail, load
 			}
 		}
 
+		// Associated forwarding rules (use comma separator instead of newline)
+		rules := "-"
+		if len(vsg.AssociatedRules) > 0 {
+			rules = ""
+			for j, r := range vsg.AssociatedRules {
+				if j > 0 {
+					rules += ", "
+				}
+				rules += r
+			}
+		}
+
 		rows[i] = table.Row{
-			vsg.VServerGroupId,
-			vsg.VServerGroupName,
-			fmt.Sprintf("%d", vsg.BackendServerCount),
+			idName,
 			listeners,
+			rules,
+			fmt.Sprintf("%d", vsg.BackendServerCount),
 		}
 		rowData[i] = vsg
 	}
 
 	m.table = m.table.SetRows(rows)
 	m.table = m.table.SetRowData(rowData)
-	m.table = m.table.SetTitle(fmt.Sprintf("VServer Groups for SLB: %s", loadBalancerId))
+	m.table = m.table.SetTitle(fmt.Sprintf("虚拟服务器组 - SLB: %s", loadBalancerId))
 	return m
 }
 
@@ -518,6 +597,164 @@ func (m SLBBackendServersModel) NextSearchMatch() SLBBackendServersModel {
 
 // PrevSearchMatch moves to previous search match
 func (m SLBBackendServersModel) PrevSearchMatch() SLBBackendServersModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
+// SLBForwardingRulesModel represents the SLB forwarding rules page
+type SLBForwardingRulesModel struct {
+	table            components.TableModel
+	rules            []service.ForwardingRuleDetail
+	loadBalancerId   string
+	listenerPort     int
+	listenerProtocol string
+	width            int
+	height           int
+	keys             SLBForwardingRulesKeyMap
+}
+
+// SLBForwardingRulesKeyMap defines key bindings for forwarding rules
+type SLBForwardingRulesKeyMap struct {
+	Enter key.Binding
+}
+
+// DefaultSLBForwardingRulesKeyMap returns default key bindings
+func DefaultSLBForwardingRulesKeyMap() SLBForwardingRulesKeyMap {
+	return SLBForwardingRulesKeyMap{
+		Enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "details"),
+		),
+	}
+}
+
+// NewSLBForwardingRulesModel creates a new SLB forwarding rules model
+func NewSLBForwardingRulesModel() SLBForwardingRulesModel {
+	columns := []table.Column{
+		{Title: "域名", Width: 35},
+		{Title: "URL", Width: 15},
+		{Title: "虚拟服务器组", Width: 30},
+		{Title: "备注", Width: 20},
+	}
+
+	return SLBForwardingRulesModel{
+		table: components.NewTableModel(columns, "转发策略列表"),
+		keys:  DefaultSLBForwardingRulesKeyMap(),
+	}
+}
+
+// SetData sets the forwarding rules data
+func (m SLBForwardingRulesModel) SetData(rules []service.ForwardingRuleDetail, loadBalancerId string, listenerPort int, listenerProtocol string) SLBForwardingRulesModel {
+	m.rules = rules
+	m.loadBalancerId = loadBalancerId
+	m.listenerPort = listenerPort
+	m.listenerProtocol = listenerProtocol
+
+	rows := make([]table.Row, len(rules))
+	rowData := make([]interface{}, len(rules))
+
+	for i, rule := range rules {
+		domain := rule.Domain
+		if domain == "" {
+			domain = "-"
+		}
+
+		url := rule.Url
+		if url == "" {
+			url = "/"
+		}
+
+		vServerGroup := rule.VServerGroupName
+		if vServerGroup == "" {
+			vServerGroup = rule.VServerGroupId
+		}
+		if vServerGroup == "" {
+			vServerGroup = "-"
+		}
+
+		remark := rule.RuleName
+		if remark == "" {
+			remark = "-"
+		}
+
+		rows[i] = table.Row{
+			domain,
+			url,
+			vServerGroup,
+			remark,
+		}
+		rowData[i] = rule
+	}
+
+	m.table = m.table.SetRows(rows)
+	m.table = m.table.SetRowData(rowData)
+	m.table = m.table.SetTitle(fmt.Sprintf("转发策略列表 - %s:%d", loadBalancerId, listenerPort))
+	return m
+}
+
+// SetSize sets the size
+func (m SLBForwardingRulesModel) SetSize(width, height int) SLBForwardingRulesModel {
+	m.width = width
+	m.height = height
+	m.table = m.table.SetSize(width, height)
+	return m
+}
+
+// SelectedRule returns the selected forwarding rule
+func (m SLBForwardingRulesModel) SelectedRule() *service.ForwardingRuleDetail {
+	idx := m.table.SelectedRow()
+	if idx >= 0 && idx < len(m.rules) {
+		return &m.rules[idx]
+	}
+	return nil
+}
+
+// Init implements tea.Model
+func (m SLBForwardingRulesModel) Init() tea.Cmd {
+	return nil
+}
+
+// Update implements tea.Model
+func (m SLBForwardingRulesModel) Update(msg tea.Msg) (SLBForwardingRulesModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.keys.Enter):
+			if rule := m.SelectedRule(); rule != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageSLBDetail,
+						Data: *rule,
+					}
+				}
+			}
+		}
+	}
+
+	var cmd tea.Cmd
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+// View implements tea.Model
+func (m SLBForwardingRulesModel) View() string {
+	return m.table.View()
+}
+
+// Search searches in the list
+func (m SLBForwardingRulesModel) Search(query string) SLBForwardingRulesModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBForwardingRulesModel) NextSearchMatch() SLBForwardingRulesModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBForwardingRulesModel) PrevSearchMatch() SLBForwardingRulesModel {
 	m.table = m.table.PrevSearchMatch()
 	return m
 }
