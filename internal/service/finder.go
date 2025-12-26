@@ -43,15 +43,15 @@ func NewFinderService(
 
 // FindResult contains all matching resources
 type FindResult struct {
-	Query              string
-	ResolvedIPs        []string
-	ECSInstances       []ecs.Instance
-	ENIs               []ecs.NetworkInterfaceSet
-	SLBInstances       []slb.LoadBalancer
-	DNSRecords         []DNSRecordMatch
-	RDSInstances       []RDSInstanceDetail // Changed to detailed instances
-	RedisInstances     []r_kvstore.KVStoreInstance
-	RocketMQInstances  []RocketMQInstance
+	Query             string
+	ResolvedIPs       []string
+	ECSInstances      []ecs.Instance
+	ENIs              []ecs.NetworkInterfaceSet
+	SLBInstances      []slb.LoadBalancer
+	DNSRecords        []DNSRecordMatch
+	RDSInstances      []RDSInstanceDetail // Changed to detailed instances
+	RedisInstances    []r_kvstore.KVStoreInstance
+	RocketMQInstances []RocketMQInstance
 }
 
 // DNSRecordMatch contains a matched DNS record with its domain
@@ -61,8 +61,17 @@ type DNSRecordMatch struct {
 }
 
 // IsIP checks if the input is an IP address
+// If the input consists only of digits and dots, it's considered an IP
 func IsIP(input string) bool {
-	return net.ParseIP(input) != nil
+	if input == "" {
+		return false
+	}
+	for _, c := range input {
+		if (c < '0' || c > '9') && c != '.' {
+			return false
+		}
+	}
+	return true
 }
 
 // IsDomain checks if the input looks like a domain name
@@ -77,7 +86,7 @@ func IsDomain(input string) bool {
 // If input is a domain, tries to resolve via Aliyun DNS first, then system DNS
 func (s *FinderService) ResolveToIPs(input string) ([]string, string, error) {
 	input = strings.TrimSpace(input)
-	
+
 	// If already an IP, return it
 	if IsIP(input) {
 		return []string{input}, input, nil
@@ -132,7 +141,7 @@ func (s *FinderService) resolveViaAliyunDNS(domain string) ([]string, error) {
 
 			for _, r := range records {
 				// Match A records with the subdomain
-				if r.Type == "A" && (r.RR == expectedRR || r.RR+"." +d.DomainName == domain) {
+				if r.Type == "A" && (r.RR == expectedRR || r.RR+"."+d.DomainName == domain) {
 					ips = append(ips, r.Value)
 				}
 			}
@@ -508,4 +517,3 @@ func (r *FindResult) TotalCount() int {
 		len(r.RedisInstances) +
 		len(r.RocketMQInstances)
 }
-
