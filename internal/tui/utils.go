@@ -47,7 +47,7 @@ func createEditorCmd(data interface{}) *exec.Cmd {
 	}
 
 	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "tali-*.json")
+	tmpFile, err := os.CreateTemp("", "alidash-*.json")
 	if err != nil {
 		return exec.Command("echo", "Error creating temp file")
 	}
@@ -85,7 +85,7 @@ func createPagerCmd(data interface{}) *exec.Cmd {
 	}
 
 	// Create temporary file
-	tmpFile, err := os.CreateTemp("", "tali-*.json")
+	tmpFile, err := os.CreateTemp("", "alidash-*.json")
 	if err != nil {
 		return exec.Command("echo", "Error creating temp file")
 	}

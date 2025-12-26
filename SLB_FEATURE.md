@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of the SLB feature in the tali application, which allows users to navigate through SLB instances, their listeners, virtual server groups, and backend servers.
+This document describes the implementation of the SLB feature in the alidash application, which allows users to navigate through SLB instances, their listeners, virtual server groups, and backend servers.
 
 ## Features Implemented
 
@@ -141,7 +141,7 @@ The implementation has been tested with:
 
 ## Usage Example
 
-1. Start the application: `./tali`
+1. Start the application: `./alidash`
 2. Select "SLB Instances" from the main menu
 3. Navigate through the SLB list using arrow keys
 4. Press `l` to view listeners or `v` to view virtual server groups

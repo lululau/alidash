@@ -7,7 +7,7 @@
 ## 新的项目结构
 
 ```
-tali/
+alidash/
 ├── cmd/
 │   └── main.go                    # 简化的主程序入口
 ├── internal/
@@ -124,10 +124,10 @@ tali/
 ### 编译和运行
 ```bash
 # 编译
-go build -o tali cmd/main.go
+go build -o alidash cmd/main.go
 
 # 运行
-./tali
+./alidash
 ```
 
 ## 未来改进方向

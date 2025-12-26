@@ -1,4 +1,4 @@
-# tali
+# alidash
 
 A Terminal User Interface (TUI) application for managing Alibaba Cloud resources. Navigate and inspect your cloud infrastructure directly from the command line with vim-style navigation and powerful search capabilities.
 
@@ -35,20 +35,20 @@ A Terminal User Interface (TUI) application for managing Alibaba Cloud resources
 
 ### Using Homebrew (macOS)
 
-The easiest way to install tali on macOS is using Homebrew:
+The easiest way to install alidash on macOS is using Homebrew:
 
 ```bash
 # Add the tap (replace with your actual repository)
-brew tap lululau/tali
+brew tap lululau/alidash
 
-# Install tali
-brew install tali
+# Install alidash
+brew install alidash
 ```
 
 Or install directly from the formula URL:
 
 ```bash
-brew install https://raw.githubusercontent.com/lululau/tali/main/tali.rb
+brew install https://raw.githubusercontent.com/lululau/alidash/main/alidash.rb
 ```
 
 For detailed Homebrew setup instructions, including creating your own tap, see [HOMEBREW.md](HOMEBREW.md).
@@ -63,12 +63,12 @@ For detailed Homebrew setup instructions, including creating your own tap, see [
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd tali
+cd alidash
 ```
 
 2. Build the application:
 ```bash
-go build -o tali cmd/main.go
+go build -o alidash cmd/main.go
 ```
 
 3. (Optional) Install globally:
@@ -128,12 +128,12 @@ The application uses the standard Alibaba Cloud CLI configuration format. Create
 ### Running the Application
 
 ```bash
-./tali
+./alidash
 ```
 
 Or if installed globally:
 ```bash
-tali
+alidash
 ```
 
 ### Navigation and Controls
@@ -392,13 +392,13 @@ go mod download
 go test ./...
 
 # Build
-go build -o tali cmd/main.go
+go build -o alidash cmd/main.go
 ```
 
 ### Project Structure
 
 ```
-tali/
+alidash/
 ├── cmd/                    # Application entry point
 ├── internal/
 │   ├── client/            # Alibaba Cloud client management

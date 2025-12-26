@@ -1,12 +1,12 @@
 # Homebrew Installation Guide
 
-This document provides detailed instructions for installing tali using Homebrew on macOS.
+This document provides detailed instructions for installing alidash using Homebrew on macOS.
 
 ## Quick Installation
 
 ```bash
 # Install directly from the formula URL
-brew install https://raw.githubusercontent.com/lululau/tali/main/tali.rb
+brew install https://raw.githubusercontent.com/lululau/alidash/main/alidash.rb
 ```
 
 ## Setting up a Homebrew Tap
@@ -15,15 +15,15 @@ For easier installation and updates, you can create a Homebrew tap:
 
 ### 1. Create a Homebrew Tap Repository
 
-Create a new repository named `homebrew-tali` on GitHub (the `homebrew-` prefix is required).
+Create a new repository named `homebrew-alidash` on GitHub (the `homebrew-` prefix is required).
 
 ### 2. Add the Formula
 
-Copy the `tali.rb` file to the root of your `homebrew-tali` repository.
+Copy the `alidash.rb` file to the root of your `homebrew-alidash` repository.
 
 ### 3. Update the Formula
 
-Before publishing, update the following fields in `tali.rb`:
+Before publishing, update the following fields in `alidash.rb`:
 
 - **homepage**: Update to your actual repository URL
 - **url**: Update to point to your release tarball
@@ -36,10 +36,10 @@ To get the SHA256 hash for your release:
 
 ```bash
 # Download your release tarball
-curl -L https://github.com/lululau/tali/archive/v1.0.0.tar.gz -o tali-1.0.0.tar.gz
+curl -L https://github.com/lululau/alidash/archive/v1.0.0.tar.gz -o alidash-1.0.0.tar.gz
 
 # Calculate SHA256
-shasum -a 256 tali-1.0.0.tar.gz
+shasum -a 256 alidash-1.0.0.tar.gz
 ```
 
 ### 5. Install from Your Tap
@@ -48,10 +48,10 @@ Once your tap is set up:
 
 ```bash
 # Add your tap
-brew tap lululau/tali
+brew tap lululau/alidash
 
-# Install tali
-brew install tali
+# Install alidash
+brew install alidash
 ```
 
 ## Updating the Formula
@@ -61,7 +61,7 @@ When you release a new version:
 1. Update the `url` field to point to the new release
 2. Update the `sha256` hash
 3. Commit and push the changes to your tap repository
-4. Users can update with: `brew upgrade tali`
+4. Users can update with: `brew upgrade alidash`
 
 ## Testing the Formula
 
@@ -69,13 +69,13 @@ Test your formula locally:
 
 ```bash
 # Install from local formula
-brew install --build-from-source ./tali.rb
+brew install --build-from-source ./alidash.rb
 
 # Test the installation
-tali --version
+alidash --version
 
 # Uninstall for testing
-brew uninstall tali
+brew uninstall alidash
 ```
 
 ## Formula Template
@@ -83,10 +83,10 @@ brew uninstall tali
 Here's the complete formula template with placeholders:
 
 ```ruby
-class Tali < Formula
+class Alidash < Formula
   desc "Terminal User Interface (TUI) application for managing Alibaba Cloud resources"
-  homepage "https://github.com/lululau/tali"
-  url "https://github.com/lululau/tali/archive/vVERSION.tar.gz"
+  homepage "https://github.com/lululau/alidash"
+  url "https://github.com/lululau/alidash/archive/vVERSION.tar.gz"
   sha256 "YOUR_SHA256_HASH"
   license "MIT"
 
@@ -97,7 +97,7 @@ class Tali < Formula
   end
 
   test do
-    assert_match "tali", shell_output("#{bin}/tali --help 2>&1", 1)
+    assert_match "alidash", shell_output("#{bin}/alidash --help 2>&1", 1)
   end
 end
 ```

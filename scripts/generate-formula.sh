@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to generate Homebrew formula for tali
+# Script to generate Homebrew formula for alidash
 # Usage: ./scripts/generate-formula.sh <version> <github-username>
 
 set -e
@@ -14,8 +14,8 @@ if [ "$GITHUB_USER" = "your-username" ]; then
     exit 1
 fi
 
-TARBALL_URL="https://github.com/${GITHUB_USER}/tali/archive/v${VERSION}.tar.gz"
-TEMP_FILE="/tmp/tali-${VERSION}.tar.gz"
+TARBALL_URL="https://github.com/${GITHUB_USER}/alidash/archive/v${VERSION}.tar.gz"
+TEMP_FILE="/tmp/alidash-${VERSION}.tar.gz"
 
 echo "Downloading tarball to calculate SHA256..."
 curl -L "$TARBALL_URL" -o "$TEMP_FILE"
@@ -30,11 +30,11 @@ SHA256=$(shasum -a 256 "$TEMP_FILE" | cut -d' ' -f1)
 echo "SHA256: $SHA256"
 
 # Generate the formula
-cat > tali.rb << EOF
-class Tali < Formula
+cat > alidash.rb << EOF
+class Alidash < Formula
   desc "Terminal User Interface (TUI) application for managing Alibaba Cloud resources"
-  homepage "https://github.com/${GITHUB_USER}/tali"
-  url "https://github.com/${GITHUB_USER}/tali/archive/v${VERSION}.tar.gz"
+  homepage "https://github.com/${GITHUB_USER}/alidash"
+  url "https://github.com/${GITHUB_USER}/alidash/archive/v${VERSION}.tar.gz"
   sha256 "${SHA256}"
   license "MIT"
 
@@ -45,12 +45,12 @@ class Tali < Formula
   end
 
   test do
-    assert_match "tali", shell_output("#{bin}/tali --help 2>&1", 1)
+    assert_match "alidash", shell_output("#{bin}/alidash --help 2>&1", 1)
   end
 end
 EOF
 
-echo "Generated tali.rb formula for version ${VERSION}"
+echo "Generated alidash.rb formula for version ${VERSION}"
 echo "GitHub user: ${GITHUB_USER}"
 echo "SHA256: ${SHA256}"
 
@@ -59,8 +59,8 @@ rm -f "$TEMP_FILE"
 
 echo ""
 echo "Next steps:"
-echo "1. Review the generated tali.rb file"
-echo "2. Test the formula: brew install --build-from-source ./tali.rb"
-echo "3. Create a homebrew-tali repository on GitHub"
-echo "4. Copy tali.rb to the root of that repository"
-echo "5. Users can then install with: brew tap ${GITHUB_USER}/tali && brew install tali" 
+echo "1. Review the generated alidash.rb file"
+echo "2. Test the formula: brew install --build-from-source ./alidash.rb"
+echo "3. Create a homebrew-alidash repository on GitHub"
+echo "4. Copy alidash.rb to the root of that repository"
+echo "5. Users can then install with: brew tap ${GITHUB_USER}/alidash && brew install alidash" 

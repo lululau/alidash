@@ -1,4 +1,4 @@
-# Tali 使用示例
+# Alidash 使用示例
 
 ## 快速开始
 
@@ -14,7 +14,7 @@ export ALIBABA_CLOUD_OSS_ENDPOINT="oss-cn-hangzhou.aliyuncs.com"
 ### 2. 启动应用
 
 ```bash
-./tali
+./alidash
 ```
 
 ## 界面导航

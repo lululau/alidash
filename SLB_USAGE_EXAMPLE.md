@@ -4,7 +4,7 @@
 
 ### 1. Launch the Application
 ```bash
-./tali
+./alidash
 ```
 
 ### 2. Navigate to SLB Instances
@@ -86,7 +86,7 @@ Listeners   VServer Groups  Details
 
 ### Scenario: Investigating Load Balancer Configuration
 
-1. **Start with SLB list**: `./tali` → Select "SLB Instances"
+1. **Start with SLB list**: `./alidash` → Select "SLB Instances"
 2. **Find your SLB**: Use `/` to search for "web-lb-prod"
 3. **Check listeners**: Press `l` to see what ports are configured
 4. **Check backend distribution**: Press `q` to go back, then `v` to view virtual server groups

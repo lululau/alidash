@@ -367,7 +367,7 @@ func historyFilePath() string {
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(usr.HomeDir, ".aliyun", "tali_history.json")
+	return filepath.Join(usr.HomeDir, ".aliyun", "alidash_history.json")
 }
 
 // LoadInputHistory loads input history from file

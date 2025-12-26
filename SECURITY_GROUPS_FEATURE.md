@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of the Security Groups feature in the tali application, following the same pattern as the existing ECS module.
+This document describes the implementation of the Security Groups feature in the alidash application, following the same pattern as the existing ECS module.
 
 ## Files Modified/Added
 
@@ -88,7 +88,7 @@ The implementation has been tested for:
 
 ## Usage
 
-1. Start the application: `./tali`
+1. Start the application: `./alidash`
 2. From the main menu, select "Security Groups" or press 'g'
 3. Navigate the list using j/k keys or arrow keys
 4. Press Enter on any security group to view details
