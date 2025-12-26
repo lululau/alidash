@@ -143,7 +143,7 @@ func (m ModeLineModel) formatShortcuts(shortcuts string) string {
 func (m ModeLineModel) getShortcuts() string {
 	switch m.page {
 	case types.PageMenu:
-		return "Enter: Select | j/k: Navigate | Q: Quit | P: Profile | R: Region"
+		return "Enter: Select | j/k: Navigate | F: Find Resource | Q: Quit | P: Profile | R: Region"
 
 	case types.PageECSList:
 		return "j/k: Navigate | Enter: Details | v: JSON | s: Disks | e: ENI | g: Security Groups | /: Search | yy: Copy | q: Back"
@@ -231,6 +231,9 @@ func (m ModeLineModel) getShortcuts() string {
 
 	case types.PageRocketMQTopics, types.PageRocketMQGroups:
 		return "j/k: Navigate | Enter: Details | /: Search | yy: Copy | q: Back"
+
+	case types.PageResourceFinder:
+		return "j/k: Navigate | Tab/S-Tab: Section | Enter: Details | yy: Copy | q: Back"
 
 	default:
 		return "q/Esc: Back | Q: Quit | P: Profile | R: Region"

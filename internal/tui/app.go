@@ -68,6 +68,10 @@ type Model struct {
 	rocketmqDetailPage pages.DetailModel
 	rocketmqTopicsPage pages.RocketMQTopicsModel
 	rocketmqGroupsPage pages.RocketMQGroupsModel
+	finderPage         pages.FinderModel
+
+	// Services for finder
+	finderService *service.FinderService
 
 	// Shared components
 	header   components.HeaderModel
@@ -133,6 +137,16 @@ func New() (*Model, error) {
 		RocketMQ: service.NewRocketMQService(clients.RocketMQ),
 	}
 
+	// Create finder service
+	finderService := service.NewFinderService(
+		services.ECS,
+		services.DNS,
+		services.SLB,
+		services.RDS,
+		services.Redis,
+		services.RocketMQ,
+	)
+
 	// Create region service
 	regionService := service.NewRegionService(cfg.AccessKeyID, cfg.AccessKeySecret, currentProfile)
 
@@ -145,6 +159,7 @@ func New() (*Model, error) {
 		regionService: regionService,
 		services:      services,
 		clients:       clients,
+		finderService: finderService,
 		styles:        GlobalStyles,
 		keys:          GlobalKeyMap,
 	}
@@ -201,6 +216,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Profile):
 			m.modal = components.NewProfileSelectionModal(m.profiles, m.profile)
+			return m, nil
+
+		case key.Matches(msg, m.keys.FindResource):
+			// Open resource finder input dialog
+			m.modal = components.NewInputModal("资源查找", "请输入 IP 地址或域名:", "例如: 192.168.1.1 或 example.com")
 			return m, nil
 
 		case key.Matches(msg, m.keys.Region):
@@ -298,6 +318,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Redis:    service.NewRedisService(newClients.Redis),
 			RocketMQ: service.NewRocketMQService(newClients.RocketMQ),
 		}
+		m.finderService = service.NewFinderService(
+			m.services.ECS, m.services.DNS, m.services.SLB,
+			m.services.RDS, m.services.Redis, m.services.RocketMQ,
+		)
 
 		// Clear cached data first
 		m = m.clearCachedData()
@@ -372,6 +396,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Redis:    service.NewRedisService(newClients.Redis),
 			RocketMQ: service.NewRocketMQService(newClients.RocketMQ),
 		}
+		m.finderService = service.NewFinderService(
+			m.services.ECS, m.services.DNS, m.services.SLB,
+			m.services.RDS, m.services.Redis, m.services.RocketMQ,
+		)
 
 		// Set page state
 		m.currentPage = PageMenu
@@ -407,6 +435,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case SearchPrevMsg:
 		return m.handleSearchPrev()
+
+	// Handle input modal submission for resource finder
+	case components.InputSubmittedMsg:
+		// Start resource finding
+		m.loading = true
+		return m, FindResources(m.finderService, msg.Value)
+
+	// Handle resource finder results
+	case FindResourceResultMsg:
+		m.loading = false
+		m.finderPage = pages.NewFinderModel(msg.Result)
+		m.finderPage = m.finderPage.SetSize(m.width, m.height-1)
+		var cmd tea.Cmd
+		m, cmd = m.navigateTo(PageResourceFinder, nil)
+		return m, cmd
 
 	// Handle data loaded messages
 	case ECSInstancesLoadedMsg:
@@ -516,6 +559,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case RDSInstancesLoadedMsg:
 		m.loading = false
 		m.rdsListPage = m.rdsListPage.SetData(msg.Instances)
+		m.rdsListPage = m.rdsListPage.SetSize(m.width, m.height-1)
+
+	case RDSDetailedInstancesLoadedMsg:
+		m.loading = false
+		m.rdsListPage = m.rdsListPage.SetDetailedData(msg.Instances)
 		m.rdsListPage = m.rdsListPage.SetSize(m.width, m.height-1)
 
 	case RDSDatabasesLoadedMsg:
@@ -663,6 +711,8 @@ func (m Model) View() string {
 		content = m.rocketmqTopicsPage.View()
 	case PageRocketMQGroups:
 		content = m.rocketmqGroupsPage.View()
+	case PageResourceFinder:
+		content = m.finderPage.View()
 	default:
 		content = "Unknown page"
 	}
@@ -842,7 +892,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 
 	case PageRDSList:
 		m.rdsListPage = pages.NewRDSListModel()
-		cmd = LoadRDSInstances(m.services.RDS)
+		cmd = LoadRDSDetailedInstances(m.services.RDS)
 
 	case PageRDSDetail:
 		if inst, ok := data.(interface{}); ok {
@@ -902,6 +952,10 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 			m.rocketmqGroupsPage = pages.NewRocketMQGroupsModel()
 			cmd = LoadRocketMQGroups(m.services.RocketMQ, instId)
 		}
+
+	case PageResourceFinder:
+		// Finder page is already set up via FindResourceResultMsg
+		m.loading = false
 
 	default:
 		m.loading = false
@@ -998,6 +1052,8 @@ func (m Model) getPageTitle(page PageType) string {
 		return "RocketMQ Topics"
 	case PageRocketMQGroups:
 		return "RocketMQ Groups"
+	case PageResourceFinder:
+		return "Resource Finder"
 	default:
 		return "Aliyun TUI"
 	}
@@ -1106,6 +1162,9 @@ func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 
 	case PageRocketMQGroups:
 		m.rocketmqGroupsPage, cmd = m.rocketmqGroupsPage.Update(msg)
+
+	case PageResourceFinder:
+		m.finderPage, cmd = m.finderPage.Update(msg)
 	}
 
 	return m, cmd
@@ -1180,6 +1239,8 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.rocketmqTopicsPage = m.rocketmqTopicsPage.SetSize(m.width, height)
 	case PageRocketMQGroups:
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.SetSize(m.width, height)
+	case PageResourceFinder:
+		m.finderPage = m.finderPage.SetSize(m.width, height)
 	}
 	return m
 }
@@ -1269,6 +1330,8 @@ func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
 		m.rocketmqTopicsPage = m.rocketmqTopicsPage.Search(query)
 	case PageRocketMQGroups:
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.Search(query)
+	case PageResourceFinder:
+		m.finderPage = m.finderPage.Search(query)
 	}
 
 	return m, nil
@@ -1341,6 +1404,8 @@ func (m Model) handleSearchNext() (Model, tea.Cmd) {
 		m.rocketmqTopicsPage = m.rocketmqTopicsPage.NextSearchMatch()
 	case PageRocketMQGroups:
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.NextSearchMatch()
+	case PageResourceFinder:
+		m.finderPage = m.finderPage.NextSearchMatch()
 	}
 
 	return m, nil
@@ -1413,6 +1478,8 @@ func (m Model) handleSearchPrev() (Model, tea.Cmd) {
 		m.rocketmqTopicsPage = m.rocketmqTopicsPage.PrevSearchMatch()
 	case PageRocketMQGroups:
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.PrevSearchMatch()
+	case PageResourceFinder:
+		m.finderPage = m.finderPage.PrevSearchMatch()
 	}
 
 	return m, nil

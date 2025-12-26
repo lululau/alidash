@@ -9,17 +9,19 @@ import (
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 
+	"aliyun-tui-viewer/internal/service"
 	"aliyun-tui-viewer/internal/tui/components"
 	"aliyun-tui-viewer/internal/tui/types"
 )
 
 // RDSListModel represents the RDS instances list page
 type RDSListModel struct {
-	table     components.TableModel
-	instances []rds.DBInstance
-	width     int
-	height    int
-	keys      RDSListKeyMap
+	table            components.TableModel
+	instances        []rds.DBInstance
+	detailedInstances []service.RDSInstanceDetail
+	width            int
+	height           int
+	keys             RDSListKeyMap
 }
 
 // RDSListKeyMap defines key bindings
@@ -52,10 +54,12 @@ func NewRDSListModel() RDSListModel {
 	columns := []table.Column{
 		{Title: "Instance ID", Width: 25},
 		{Title: "Engine", Width: 12},
-		{Title: "Version", Width: 10},
-		{Title: "Class", Width: 20},
-		{Title: "Status", Width: 12},
-		{Title: "Description", Width: 30},
+		{Title: "Version", Width: 8},
+		{Title: "Class", Width: 18},
+		{Title: "Internal Addr", Width: 35},
+		{Title: "Public Addr", Width: 35},
+		{Title: "Status", Width: 10},
+		{Title: "Description", Width: 20},
 	}
 
 	return RDSListModel{
@@ -64,9 +68,10 @@ func NewRDSListModel() RDSListModel {
 	}
 }
 
-// SetData sets the RDS instances data
+// SetData sets the RDS instances data (basic, without network info)
 func (m RDSListModel) SetData(instances []rds.DBInstance) RDSListModel {
 	m.instances = instances
+	m.detailedInstances = nil
 
 	rows := make([]table.Row, len(instances))
 	rowData := make([]interface{}, len(instances))
@@ -77,10 +82,50 @@ func (m RDSListModel) SetData(instances []rds.DBInstance) RDSListModel {
 			inst.Engine,
 			inst.EngineVersion,
 			inst.DBInstanceClass,
+			inst.ConnectionString, // Internal address from basic info
+			"-",                   // Public address not available without detailed fetch
 			inst.DBInstanceStatus,
 			inst.DBInstanceDescription,
 		}
 		rowData[i] = inst
+	}
+
+	m.table = m.table.SetRows(rows)
+	m.table = m.table.SetRowData(rowData)
+	return m
+}
+
+// SetDetailedData sets the RDS instances data with network info
+func (m RDSListModel) SetDetailedData(detailedInstances []service.RDSInstanceDetail) RDSListModel {
+	m.detailedInstances = detailedInstances
+	m.instances = make([]rds.DBInstance, len(detailedInstances))
+
+	rows := make([]table.Row, len(detailedInstances))
+	rowData := make([]interface{}, len(detailedInstances))
+
+	for i, detail := range detailedInstances {
+		m.instances[i] = detail.Instance
+
+		internalAddr := detail.InternalConnectionStr
+		if internalAddr == "" {
+			internalAddr = "-"
+		}
+		publicAddr := detail.PublicConnectionStr
+		if publicAddr == "" {
+			publicAddr = "-"
+		}
+
+		rows[i] = table.Row{
+			detail.Instance.DBInstanceId,
+			detail.Instance.Engine,
+			detail.Instance.EngineVersion,
+			detail.Instance.DBInstanceClass,
+			internalAddr,
+			publicAddr,
+			detail.Instance.DBInstanceStatus,
+			detail.Instance.DBInstanceDescription,
+		}
+		rowData[i] = detail
 	}
 
 	m.table = m.table.SetRows(rows)

@@ -47,6 +47,9 @@ type KeyMap struct {
 	ViewAccounts      key.Binding // A - view accounts (RDS/Redis)
 	ViewTopics        key.Binding // T - view RocketMQ topics
 	ViewGroups        key.Binding // G - view RocketMQ groups
+
+	// Resource Finder
+	FindResource key.Binding // F - find resource by IP/domain
 }
 
 // DefaultKeyMap returns the default key bindings
@@ -182,6 +185,12 @@ func DefaultKeyMap() KeyMap {
 		ViewGroups: key.NewBinding(
 			key.WithKeys("G"),
 			key.WithHelp("G", "groups"),
+		),
+
+		// Resource Finder
+		FindResource: key.NewBinding(
+			key.WithKeys("F"),
+			key.WithHelp("F", "find resource"),
 		),
 	}
 }

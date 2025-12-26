@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -19,6 +20,7 @@ const (
 	ModalTypeConfirm
 	ModalTypeProfileSelect
 	ModalTypeRegionSelect
+	ModalTypeInput // Input dialog for user text input
 )
 
 // ModalModel represents a modal dialog
@@ -38,10 +40,14 @@ type ModalModel struct {
 	selectedIndex  int
 
 	// For region selection
-	regionList    list.Model
-	regions       []string
-	currentRegion string
+	regionList     list.Model
+	regions        []string
+	currentRegion  string
 	regionsLoading bool
+
+	// For input dialog
+	inputField  textinput.Model
+	inputPrompt string
 }
 
 // ModalStyles defines styles for the modal
@@ -235,6 +241,34 @@ func NewRegionSelectionModal(currentRegion string) ModalModel {
 	}
 }
 
+// NewInputModal creates an input dialog modal
+func NewInputModal(title, prompt, placeholder string) ModalModel {
+	ti := textinput.New()
+	ti.Placeholder = placeholder
+	ti.CharLimit = 256
+	ti.Width = 50
+	ti.Prompt = ""
+	ti.PromptStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B")).
+		Bold(true)
+	ti.TextStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#E5E7EB"))
+	ti.PlaceholderStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#6B7280"))
+	ti.Focus()
+
+	return ModalModel{
+		Visible:     true,
+		modalType:   ModalTypeInput,
+		title:       title,
+		inputPrompt: prompt,
+		inputField:  ti,
+		styles:      DefaultModalStyles(),
+		width:       60,
+		height:      12,
+	}
+}
+
 // SetRegions updates the region list and exits loading state
 func (m ModalModel) SetRegions(regions []string, currentRegion string) ModalModel {
 	if m.modalType != ModalTypeRegionSelect {
@@ -417,6 +451,30 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 			m.regionList, cmd = m.regionList.Update(msg)
 			return m, cmd
 
+		case ModalTypeInput:
+			switch {
+			case key.Matches(msg, key.NewBinding(key.WithKeys("enter"))):
+				// Submit input
+				value := m.inputField.Value()
+				if value != "" {
+					m.Visible = false
+					return m, func() tea.Msg {
+						return InputSubmittedMsg{Value: value}
+					}
+				}
+
+			case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
+				m.Visible = false
+				return m, func() tea.Msg {
+					return ModalDismissedMsg{}
+				}
+			}
+
+			// Forward all other keys to text input
+			var cmd tea.Cmd
+			m.inputField, cmd = m.inputField.Update(msg)
+			return m, cmd
+
 		default:
 			// Info/Error/Success modals - dismiss on any key
 			switch msg.Type {
@@ -440,6 +498,13 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 	if m.modalType == ModalTypeRegionSelect && !m.regionsLoading {
 		var cmd tea.Cmd
 		m.regionList, cmd = m.regionList.Update(msg)
+		return m, cmd
+	}
+
+	// Update input field if applicable
+	if m.modalType == ModalTypeInput {
+		var cmd tea.Cmd
+		m.inputField, cmd = m.inputField.Update(msg)
 		return m, cmd
 	}
 
@@ -498,6 +563,17 @@ func (m ModalModel) View() string {
 		content.WriteString(m.styles.Message.Render(m.message))
 		content.WriteString("\n\n")
 		content.WriteString(m.styles.Button.Render(" OK (Enter) "))
+
+	case ModalTypeInput:
+		content.WriteString(m.styles.Title.Render(m.title))
+		content.WriteString("\n\n")
+		if m.inputPrompt != "" {
+			content.WriteString(m.styles.Message.Render(m.inputPrompt))
+			content.WriteString("\n\n")
+		}
+		content.WriteString(m.inputField.View())
+		content.WriteString("\n\n")
+		content.WriteString(m.styles.Help.Render("Enter: 确认 | Esc: 取消"))
 	}
 
 	return m.styles.Container.
@@ -513,6 +589,11 @@ type ProfileSelectedMsg struct {
 // RegionSelectedMsg is sent when a region is selected
 type RegionSelectedMsg struct {
 	Region string
+}
+
+// InputSubmittedMsg is sent when input is submitted
+type InputSubmittedMsg struct {
+	Value string
 }
 
 // ModalDismissedMsg is sent when the modal is dismissed

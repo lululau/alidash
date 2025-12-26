@@ -37,6 +37,7 @@ const (
 	PageRocketMQDetail
 	PageRocketMQTopics
 	PageRocketMQGroups
+	PageResourceFinder // Resource finder results page
 )
 
 // String returns the string representation of PageType
@@ -108,6 +109,8 @@ func (p PageType) String() string {
 		return "RocketMQ Topics"
 	case PageRocketMQGroups:
 		return "RocketMQ Groups"
+	case PageResourceFinder:
+		return "Resource Finder"
 	default:
 		return "Unknown"
 	}

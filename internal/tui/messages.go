@@ -50,6 +50,7 @@ const (
 	PageRocketMQDetail         = types.PageRocketMQDetail
 	PageRocketMQTopics         = types.PageRocketMQTopics
 	PageRocketMQGroups         = types.PageRocketMQGroups
+	PageResourceFinder         = types.PageResourceFinder
 )
 
 // NavigateMsg requests navigation to a specific page
@@ -196,6 +197,11 @@ type RDSInstancesLoadedMsg struct {
 	Instances []rds.DBInstance
 }
 
+// RDSDetailedInstancesLoadedMsg contains loaded RDS instances with network info
+type RDSDetailedInstancesLoadedMsg struct {
+	Instances []service.RDSInstanceDetail
+}
+
 // RDSDatabasesLoadedMsg contains loaded RDS databases
 type RDSDatabasesLoadedMsg struct {
 	Databases  []rds.Database
@@ -238,6 +244,18 @@ type RocketMQTopicsLoadedMsg struct {
 type RocketMQGroupsLoadedMsg struct {
 	Groups     []service.RocketMQGroup
 	InstanceId string
+}
+
+// --- Resource Finder Messages ---
+
+// FindResourceStartMsg indicates resource finding should start
+type FindResourceStartMsg struct {
+	Query string
+}
+
+// FindResourceResultMsg contains resource finding results
+type FindResourceResultMsg struct {
+	Result *service.FindResult
 }
 
 // --- Search Messages ---

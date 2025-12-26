@@ -263,6 +263,17 @@ func LoadRDSInstances(svc *service.RDSService) tea.Cmd {
 	}
 }
 
+// LoadRDSDetailedInstances creates a command to load RDS instances with network info
+func LoadRDSDetailedInstances(svc *service.RDSService) tea.Cmd {
+	return func() tea.Msg {
+		instances, err := svc.FetchDetailedInstances()
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+		return RDSDetailedInstancesLoadedMsg{Instances: instances}
+	}
+}
+
 // LoadRDSDatabases creates a command to load RDS databases
 func LoadRDSDatabases(svc *service.RDSService, instanceId string) tea.Cmd {
 	return func() tea.Msg {
@@ -356,6 +367,27 @@ func LoadRocketMQGroups(svc *service.RocketMQService, instanceId string) tea.Cmd
 			Groups:     groups,
 			InstanceId: instanceId,
 		}
+	}
+}
+
+// --- Resource Finder Commands ---
+
+// FindResources creates a command to find resources by IP or domain
+func FindResources(svc *service.FinderService, query string) tea.Cmd {
+	return func() tea.Msg {
+		// Resolve the query to IPs
+		ips, domain, err := svc.ResolveToIPs(query)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+
+		// Find matching resources
+		result, err := svc.FindResources(ips, domain)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+
+		return FindResourceResultMsg{Result: result}
 	}
 }
 
