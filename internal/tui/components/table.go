@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 )
 
 // TableModel wraps bubbles/table with additional features
@@ -506,23 +507,27 @@ func (m TableModel) highlightSearchMatch(s string) string {
 	return result.String()
 }
 
-// truncateString truncates a string to fit within width
+// truncateString truncates a string to fit within the specified display width
+// It properly handles multi-byte characters (e.g., Chinese characters take 2 cells)
 func truncateString(s string, width int) string {
-	if len(s) <= width {
+	displayWidth := runewidth.StringWidth(s)
+	if displayWidth <= width {
 		return s
 	}
 	if width <= 3 {
-		return s[:width]
+		return runewidth.Truncate(s, width, "")
 	}
-	return s[:width-3] + "..."
+	return runewidth.Truncate(s, width-3, "") + "..."
 }
 
-// padString pads a string to the specified width
+// padString pads a string to the specified display width
+// It properly handles multi-byte characters (e.g., Chinese characters take 2 cells)
 func padString(s string, width int) string {
-	if len(s) >= width {
+	displayWidth := runewidth.StringWidth(s)
+	if displayWidth >= width {
 		return s
 	}
-	return s + strings.Repeat(" ", width-len(s))
+	return s + strings.Repeat(" ", width-displayWidth)
 }
 
 // Search searches for a query in the table
