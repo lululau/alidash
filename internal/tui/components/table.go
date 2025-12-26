@@ -29,7 +29,7 @@ type TableModel struct {
 	keys        TableKeyMap
 
 	// Cursor and scroll for custom rendering
-	cursor     int
+	cursor       int
 	scrollOffset int
 
 	// Yank tracking
@@ -694,4 +694,3 @@ func AutoColumnWidths(headers []string, rows []table.Row, maxWidth int) []int {
 
 	return widths
 }
-
