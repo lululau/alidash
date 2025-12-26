@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
@@ -30,9 +31,9 @@ type FinderSection struct {
 type FinderModel struct {
 	result         *service.FindResult
 	sections       []FinderSection
+	viewport       viewport.Model // Scrollable viewport
 	currentSection int
 	currentRow     int
-	scrollOffset   int
 	width          int
 	height         int
 	keys           FinderKeyMap
@@ -97,6 +98,10 @@ type FinderKeyMap struct {
 	Down        key.Binding
 	NextSection key.Binding
 	PrevSection key.Binding
+	PageUp      key.Binding
+	PageDown    key.Binding
+	Top         key.Binding
+	Bottom      key.Binding
 	Enter       key.Binding
 	Yank        key.Binding
 }
@@ -120,6 +125,22 @@ func DefaultFinderKeyMap() FinderKeyMap {
 			key.WithKeys("shift+tab"),
 			key.WithHelp("S-tab", "prev section"),
 		),
+		PageUp: key.NewBinding(
+			key.WithKeys("ctrl+b", "pgup"),
+			key.WithHelp("ctrl+b", "page up"),
+		),
+		PageDown: key.NewBinding(
+			key.WithKeys("ctrl+f", "pgdown"),
+			key.WithHelp("ctrl+f", "page down"),
+		),
+		Top: key.NewBinding(
+			key.WithKeys("g"),
+			key.WithHelp("g", "go to top"),
+		),
+		Bottom: key.NewBinding(
+			key.WithKeys("G"),
+			key.WithHelp("G", "go to bottom"),
+		),
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "details"),
@@ -134,11 +155,13 @@ func DefaultFinderKeyMap() FinderKeyMap {
 // NewFinderModel creates a new finder model
 func NewFinderModel(result *service.FindResult) FinderModel {
 	m := FinderModel{
-		result: result,
-		keys:   DefaultFinderKeyMap(),
-		styles: DefaultFinderStyles(),
+		result:   result,
+		keys:     DefaultFinderKeyMap(),
+		styles:   DefaultFinderStyles(),
+		viewport: viewport.New(80, 20), // Initial size, will be updated by SetSize
 	}
 	m.buildSections()
+	m.updateViewportContent()
 	return m
 }
 
@@ -318,7 +341,90 @@ func (m *FinderModel) buildSections() {
 func (m FinderModel) SetSize(width, height int) FinderModel {
 	m.width = width
 	m.height = height
+	m.viewport.Width = width
+	m.viewport.Height = height
+	m.updateViewportContent()
 	return m
+}
+
+// updateViewportContent renders all content and sets it to viewport
+func (m *FinderModel) updateViewportContent() {
+	if m.result == nil {
+		return
+	}
+
+	var b strings.Builder
+
+	// Header
+	query := m.result.Query
+	if len(m.result.ResolvedIPs) > 0 {
+		query = fmt.Sprintf("%s → %s", m.result.Query, strings.Join(m.result.ResolvedIPs, ", "))
+	}
+	b.WriteString(m.styles.Title.Render(fmt.Sprintf("%s: %s", i18n.T(i18n.KeyFinderResult), query)))
+	b.WriteString("\n")
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Bold(true).
+		Render(fmt.Sprintf(i18n.T(i18n.KeyFinderTotalMatches), m.result.TotalCount())))
+	b.WriteString("\n\n")
+
+	// Calculate section width
+	sectionWidth := m.width - 4
+	if sectionWidth < 80 {
+		sectionWidth = 80
+	}
+
+	// Render each section
+	for i, section := range m.sections {
+		isFocused := i == m.currentSection
+
+		// Render section content
+		sectionContent := m.renderSection(section, isFocused, sectionWidth-4)
+
+		// Apply border style based on focus
+		var bordered string
+		if isFocused {
+			bordered = m.styles.FocusedBorder.Width(sectionWidth).Render(sectionContent)
+		} else {
+			bordered = m.styles.Border.Width(sectionWidth).Render(sectionContent)
+		}
+
+		b.WriteString(bordered)
+		b.WriteString("\n")
+	}
+
+	m.viewport.SetContent(b.String())
+}
+
+// ensureSelectedVisible adjusts viewport scroll to keep selected row visible
+func (m *FinderModel) ensureSelectedVisible() {
+	// Calculate approximate line position of current selection
+	// Header: 3 lines (title + count + empty line)
+	linePos := 3
+
+	for i := 0; i < m.currentSection; i++ {
+		section := m.sections[i]
+		// Each section has: border top (1) + title (1) + header (1) + separator (1) + rows + border bottom (1) + margin (1)
+		rowCount := len(section.Rows)
+		if rowCount == 0 {
+			rowCount = 1 // Empty message
+		}
+		linePos += 1 + 1 + 1 + 1 + rowCount + 1 + 1
+	}
+
+	// Add current section's header lines (border + title + header + separator)
+	linePos += 1 + 1 + 1 + 1
+	// Add current row position
+	linePos += m.currentRow
+
+	// Get viewport visible range
+	viewportTop := m.viewport.YOffset
+	viewportBottom := viewportTop + m.viewport.Height - 1
+
+	// Scroll if needed
+	if linePos < viewportTop {
+		m.viewport.SetYOffset(linePos)
+	} else if linePos > viewportBottom {
+		m.viewport.SetYOffset(linePos - m.viewport.Height + 1)
+	}
 }
 
 // Init implements tea.Model
@@ -328,17 +434,46 @@ func (m FinderModel) Init() tea.Cmd {
 
 // Update implements tea.Model
 func (m FinderModel) Update(msg tea.Msg) (FinderModel, tea.Cmd) {
+	var cmd tea.Cmd
+	needsUpdate := false
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Down):
 			m = m.moveDown()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.Up):
 			m = m.moveUp()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.NextSection):
 			m = m.nextSection()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.PrevSection):
 			m = m.prevSection()
+			needsUpdate = true
+		case key.Matches(msg, m.keys.PageUp):
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
+		case key.Matches(msg, m.keys.PageDown):
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
+		case key.Matches(msg, m.keys.Top):
+			m.currentSection = 0
+			m.currentRow = 0
+			m.viewport.GotoTop()
+			needsUpdate = true
+		case key.Matches(msg, m.keys.Bottom):
+			// Go to last section with rows
+			for i := len(m.sections) - 1; i >= 0; i-- {
+				if len(m.sections[i].Rows) > 0 {
+					m.currentSection = i
+					m.currentRow = len(m.sections[i].Rows) - 1
+					break
+				}
+			}
+			m.viewport.GotoBottom()
+			needsUpdate = true
 		case key.Matches(msg, m.keys.Enter):
 			return m, m.handleEnter()
 		case key.Matches(msg, m.keys.Yank):
@@ -364,10 +499,22 @@ func (m FinderModel) Update(msg tea.Msg) (FinderModel, tea.Cmd) {
 					}
 				}
 			}
+		default:
+			// Delegate other keys to viewport for scrolling
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd
 		}
+	default:
+		// Delegate other messages to viewport
+		m.viewport, cmd = m.viewport.Update(msg)
 	}
 
-	return m, nil
+	if needsUpdate {
+		m.updateViewportContent()
+		m.ensureSelectedVisible()
+	}
+
+	return m, cmd
 }
 
 // handleEnter handles the enter key to navigate to detail view
@@ -459,46 +606,7 @@ func (m FinderModel) View() string {
 	if m.result == nil {
 		return i18n.T(i18n.KeyFinderNoMatch)
 	}
-
-	var b strings.Builder
-
-	// Header
-	query := m.result.Query
-	if len(m.result.ResolvedIPs) > 0 {
-		query = fmt.Sprintf("%s → %s", m.result.Query, strings.Join(m.result.ResolvedIPs, ", "))
-	}
-	b.WriteString(m.styles.Title.Render(fmt.Sprintf("%s: %s", i18n.T(i18n.KeyFinderResult), query)))
-	b.WriteString("\n")
-	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Bold(true).
-		Render(fmt.Sprintf(i18n.T(i18n.KeyFinderTotalMatches), m.result.TotalCount())))
-	b.WriteString("\n\n")
-
-	// Calculate section width
-	sectionWidth := m.width - 4
-	if sectionWidth < 80 {
-		sectionWidth = 80
-	}
-
-	// Render each section
-	for i, section := range m.sections {
-		isFocused := i == m.currentSection
-
-		// Render section content
-		sectionContent := m.renderSection(section, isFocused, sectionWidth-4)
-
-		// Apply border style based on focus
-		var bordered string
-		if isFocused {
-			bordered = m.styles.FocusedBorder.Width(sectionWidth).Render(sectionContent)
-		} else {
-			bordered = m.styles.Border.Width(sectionWidth).Render(sectionContent)
-		}
-
-		b.WriteString(bordered)
-		b.WriteString("\n")
-	}
-
-	return b.String()
+	return m.viewport.View()
 }
 
 // renderSection renders a single section's table content
