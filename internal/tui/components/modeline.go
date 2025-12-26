@@ -1,7 +1,7 @@
 package components
 
 import (
-	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -11,18 +11,18 @@ import (
 
 // ModeLineModel represents the status bar at the bottom
 type ModeLineModel struct {
-	profile   string
-	page      types.PageType
-	pageInfo  string // Optional additional info (e.g., page number)
-	width     int
-	styles    ModeLineStyles
+	profile  string
+	region   string
+	page     types.PageType
+	pageInfo string // Optional additional info (e.g., page number)
+	width    int
+	styles   ModeLineStyles
 }
 
 // ModeLineStyles defines styles for the mode line
 type ModeLineStyles struct {
 	Background lipgloss.Style
-	Profile    lipgloss.Style
-	PageInfo   lipgloss.Style
+	Key        lipgloss.Style
 	Help       lipgloss.Style
 	Separator  lipgloss.Style
 }
@@ -33,11 +33,9 @@ func DefaultModeLineStyles() ModeLineStyles {
 		Background: lipgloss.NewStyle().
 			Background(lipgloss.Color("#1F2937")).
 			Foreground(lipgloss.Color("#E5E7EB")),
-		Profile: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#7C3AED")).
+		Key: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#F59E0B")).
 			Bold(true),
-		PageInfo: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#06B6D4")),
 		Help: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#9CA3AF")),
 		Separator: lipgloss.NewStyle().
@@ -46,9 +44,10 @@ func DefaultModeLineStyles() ModeLineStyles {
 }
 
 // NewModeLineModel creates a new mode line model
-func NewModeLineModel(profile string, page types.PageType) ModeLineModel {
+func NewModeLineModel(profile string, region string, page types.PageType) ModeLineModel {
 	return ModeLineModel{
 		profile: profile,
+		region:  region,
 		page:    page,
 		styles:  DefaultModeLineStyles(),
 	}
@@ -57,6 +56,12 @@ func NewModeLineModel(profile string, page types.PageType) ModeLineModel {
 // SetProfile sets the current profile
 func (m ModeLineModel) SetProfile(profile string) ModeLineModel {
 	m.profile = profile
+	return m
+}
+
+// SetRegion sets the current region
+func (m ModeLineModel) SetRegion(region string) ModeLineModel {
+	m.region = region
 	return m
 }
 
@@ -79,62 +84,66 @@ func (m ModeLineModel) SetWidth(width int) ModeLineModel {
 	return m
 }
 
-// View renders the mode line
+// GetProfile returns the current profile
+func (m ModeLineModel) GetProfile() string {
+	return m.profile
+}
+
+// GetRegion returns the current region
+func (m ModeLineModel) GetRegion() string {
+	return m.region
+}
+
+// View renders the mode line (shortcuts only, left-aligned)
 func (m ModeLineModel) View() string {
-	// Left side: Profile
-	leftPart := m.styles.Profile.Render(fmt.Sprintf(" Profile: %s ", m.profile))
-
-	// Middle: Page info (if any)
-	middlePart := ""
-	if m.pageInfo != "" {
-		middlePart = m.styles.PageInfo.Render(m.pageInfo)
-	}
-
-	// Right side: Shortcuts help
+	// Get shortcuts and format with highlighted keys
 	shortcuts := m.getShortcuts()
-	rightPart := m.styles.Help.Render(shortcuts + " ")
+	formattedShortcuts := m.formatShortcuts(shortcuts)
 
-	// Calculate spacing
-	leftLen := lipgloss.Width(leftPart)
-	middleLen := lipgloss.Width(middlePart)
-	rightLen := lipgloss.Width(rightPart)
-
-	totalFixedLen := leftLen + middleLen + rightLen
-	availableSpace := m.width - totalFixedLen
-
-	if availableSpace < 0 {
-		availableSpace = 0
+	// Add page info if present
+	content := " " + formattedShortcuts
+	if m.pageInfo != "" {
+		content = " " + m.styles.Help.Render(m.pageInfo) + m.styles.Separator.Render(" | ") + formattedShortcuts
 	}
-
-	// Distribute spacing
-	var leftSpace, rightSpace int
-	if middlePart != "" {
-		leftSpace = availableSpace / 2
-		rightSpace = availableSpace - leftSpace
-	} else {
-		leftSpace = availableSpace
-		rightSpace = 0
-	}
-
-	var content strings.Builder
-	content.WriteString(leftPart)
-	content.WriteString(strings.Repeat(" ", leftSpace))
-	if middlePart != "" {
-		content.WriteString(middlePart)
-		content.WriteString(strings.Repeat(" ", rightSpace))
-	}
-	content.WriteString(rightPart)
 
 	return m.styles.Background.
 		Width(m.width).
-		Render(content.String())
+		Render(content)
+}
+
+// formatShortcuts formats shortcuts with highlighted keys
+// Input format: "Enter: Select | j/k: Navigate | Q: Quit"
+// Output: keys are highlighted, descriptions are normal
+func (m ModeLineModel) formatShortcuts(shortcuts string) string {
+	// Split by " | "
+	parts := strings.Split(shortcuts, " | ")
+	var formattedParts []string
+
+	// Regex to match "key: description" or "key/key: description" patterns
+	// Also handles special keys like "n/N", "yy", etc.
+	keyPattern := regexp.MustCompile(`^([^:]+):\s*(.*)$`)
+
+	for _, part := range parts {
+		match := keyPattern.FindStringSubmatch(part)
+		if len(match) == 3 {
+			key := match[1]
+			desc := match[2]
+			formatted := m.styles.Key.Render(key) + m.styles.Help.Render(": "+desc)
+			formattedParts = append(formattedParts, formatted)
+		} else {
+			// No colon found, treat as plain text
+			formattedParts = append(formattedParts, m.styles.Help.Render(part))
+		}
+	}
+
+	return strings.Join(formattedParts, m.styles.Separator.Render(" | "))
 }
 
 // getShortcuts returns the context-sensitive shortcuts for the current page
 func (m ModeLineModel) getShortcuts() string {
 	switch m.page {
 	case types.PageMenu:
-		return "Enter: Select | j/k: Navigate | Q: Quit | O: Profile"
+		return "Enter: Select | j/k: Navigate | Q: Quit | P: Profile | R: Region"
 
 	case types.PageECSList:
 		return "j/k: Navigate | Enter: Details | g: Security Groups | /: Search | yy: Copy | q: Back"
@@ -209,6 +218,6 @@ func (m ModeLineModel) getShortcuts() string {
 		return "j/k: Navigate | Enter: Details | /: Search | yy: Copy | q: Back"
 
 	default:
-		return "q/Esc: Back | Q: Quit | O: Profile"
+		return "q/Esc: Back | Q: Quit | P: Profile | R: Region"
 	}
 }

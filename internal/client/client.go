@@ -100,3 +100,14 @@ func NewAliyunClients(cfg *Config) (*AliyunClients, error) {
 func (c *AliyunClients) GetConfig() *Config {
 	return c.config
 }
+
+// UpdateRegion creates new clients with a different region
+func (c *AliyunClients) UpdateRegion(regionID string) (*AliyunClients, error) {
+	newConfig := &Config{
+		AccessKeyID:     c.config.AccessKeyID,
+		AccessKeySecret: c.config.AccessKeySecret,
+		RegionID:        regionID,
+		OssEndpoint:     fmt.Sprintf("oss-%s.aliyuncs.com", regionID),
+	}
+	return NewAliyunClients(newConfig)
+}

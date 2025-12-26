@@ -25,6 +25,11 @@ type Model struct {
 	profile  string
 	profiles []string
 
+	// Region
+	region        string
+	regions       []string
+	regionService *service.RegionService
+
 	// Services and clients
 	services *Services
 	clients  *client.AliyunClients
@@ -60,6 +65,7 @@ type Model struct {
 	rocketmqGroupsPage pages.RocketMQGroupsModel
 
 	// Shared components
+	header   components.HeaderModel
 	modeLine components.ModeLineModel
 	search   components.SearchModel
 	modal    components.ModalModel
@@ -122,11 +128,16 @@ func New() (*Model, error) {
 		RocketMQ: service.NewRocketMQService(clients.RocketMQ),
 	}
 
+	// Create region service
+	regionService := service.NewRegionService(cfg.AccessKeyID, cfg.AccessKeySecret, currentProfile)
+
 	m := &Model{
 		currentPage:   PageMenu,
 		previousPages: []PageType{},
 		profile:       currentProfile,
 		profiles:      profiles,
+		region:        cfg.RegionID,
+		regionService: regionService,
 		services:      services,
 		clients:       clients,
 		styles:        GlobalStyles,
@@ -135,7 +146,8 @@ func New() (*Model, error) {
 
 	// Initialize page models
 	m.menuPage = pages.NewMenuModel()
-	m.modeLine = components.NewModeLineModel(currentProfile, PageMenu)
+	m.header = components.NewHeaderModel("Aliyun TUI Dashboard", currentProfile, cfg.RegionID)
+	m.modeLine = components.NewModeLineModel(currentProfile, cfg.RegionID, PageMenu)
 	m.search = components.NewSearchModel()
 	m.modal = components.NewModalModel()
 
@@ -186,6 +198,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.modal = components.NewProfileSelectionModal(m.profiles, m.profile)
 			return m, nil
 
+		case key.Matches(msg, m.keys.Region):
+			// Show loading modal and start async region loading
+			m.modal = components.NewRegionSelectionModal(m.region)
+			return m, m.loadRegions()
+
 		case key.Matches(msg, m.keys.Back):
 			// q/esc goes back, but not on menu page (menu uses Q to quit)
 			if m.currentPage != PageMenu {
@@ -218,9 +235,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		// Update all components with new size
-		headerHeight := 1  // Mode line
-		contentHeight := m.height - headerHeight
+		// Layout: header (1) + empty line (1) + content + modeline (1)
+		chromeHeight := 3 // header + empty line + modeline
+		contentHeight := m.height - chromeHeight
 
+		m.header = m.header.SetWidth(m.width)
 		m.menuPage = m.menuPage.SetSize(m.width, contentHeight)
 		m.modeLine = m.modeLine.SetWidth(m.width)
 
@@ -275,26 +294,87 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			RocketMQ: service.NewRocketMQService(newClients.RocketMQ),
 		}
 
-		// Update profile and mode line
-		m.profile = msg.Profile
-		m.modeLine = m.modeLine.SetProfile(msg.Profile)
-
-		// Clear cached data and return to menu
+		// Clear cached data first
 		m = m.clearCachedData()
+
+		// Update profile, region and mode line AFTER clearing cache
+		m.profile = msg.Profile
+		m.region = cfg.RegionID // Reset to profile's default region
+		m.header = m.header.SetProfile(msg.Profile).SetRegion(cfg.RegionID).SetTitle("Aliyun TUI Dashboard")
+		m.modeLine = m.modeLine.SetProfile(msg.Profile).SetRegion(cfg.RegionID)
+
+		// Update region service for new profile (cache is per-profile)
+		m.regionService = service.NewRegionService(cfg.AccessKeyID, cfg.AccessKeySecret, msg.Profile)
+
+		// Set page state
 		m.currentPage = PageMenu
 		m.previousPages = []PageType{}
 
 		// Show success message
-		m.modal = components.NewSuccessModal(fmt.Sprintf("Switched to profile: %s", msg.Profile))
+		m.modal = components.NewSuccessModal(fmt.Sprintf("Switched to profile: %s (region: %s)", msg.Profile, cfg.RegionID))
 		return m, nil
 
 	case ProfileSwitchedMsg:
-		m.profile = msg.ProfileName
-		m.modeLine = m.modeLine.SetProfile(msg.ProfileName)
 		// Clear all cached data by resetting page models
 		m = m.clearCachedData()
+		// Update profile, header and mode line AFTER clearing cache
+		m.profile = msg.ProfileName
+		m.header = m.header.SetProfile(msg.ProfileName).SetTitle("Aliyun TUI Dashboard")
+		m.modeLine = m.modeLine.SetProfile(msg.ProfileName)
 		m.currentPage = PageMenu
 		m.previousPages = []PageType{}
+
+	case RegionsLoadedMsg:
+		// Update modal with loaded regions
+		m.regions = msg.Regions
+		m.modal = m.modal.SetRegions(msg.Regions, m.region)
+		return m, nil
+
+	case components.RegionSelectedMsg:
+		// Region switching - called when user selects a region from modal
+		if msg.Region == m.region {
+			// Same region, just dismiss modal
+			m.modal = m.modal.Hide()
+			return m, nil
+		}
+
+		// Recreate clients with new region using UpdateRegion
+		newClients, err := m.clients.UpdateRegion(msg.Region)
+		if err != nil {
+			m.modal = components.NewErrorModal(fmt.Sprintf("Failed to create clients: %v", err))
+			return m, nil
+		}
+
+		// Get config for OSS service
+		clientCfg := newClients.GetConfig()
+
+		// Clear cached data first
+		m = m.clearCachedData()
+
+		// Update region AFTER clearing cache
+		m.region = msg.Region
+		m.header = m.header.SetRegion(msg.Region).SetTitle("Aliyun TUI Dashboard")
+		m.modeLine = m.modeLine.SetRegion(msg.Region)
+
+		// Update clients and recreate services
+		m.clients = newClients
+		m.services = &Services{
+			ECS:      service.NewECSService(newClients.ECS),
+			DNS:      service.NewDNSService(newClients.DNS),
+			SLB:      service.NewSLBService(newClients.SLB),
+			RDS:      service.NewRDSService(newClients.RDS),
+			OSS:      service.NewOSSServiceWithCredentials(newClients.OSS, clientCfg.AccessKeyID, clientCfg.AccessKeySecret, clientCfg.OssEndpoint),
+			Redis:    service.NewRedisService(newClients.Redis),
+			RocketMQ: service.NewRocketMQService(newClients.RocketMQ),
+		}
+
+		// Set page state
+		m.currentPage = PageMenu
+		m.previousPages = []PageType{}
+
+		// Show success message
+		m.modal = components.NewSuccessModal(fmt.Sprintf("Switched to region: %s", msg.Region))
+		return m, nil
 
 	case NavigateMsg:
 		return m.navigateTo(msg.Page, msg.Data)
@@ -461,6 +541,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.modal = components.NewInfoModal("Copied to clipboard!")
 	}
 
+	// Forward non-key messages to modal if visible (for list filtering to work)
+	if m.modal.Visible {
+		var cmd tea.Cmd
+		m.modal, cmd = m.modal.Update(msg)
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
+	}
+
 	// Update current page
 	var cmd tea.Cmd
 	m, cmd = m.updateCurrentPage(msg)
@@ -543,12 +632,13 @@ func (m Model) View() string {
 
 	// Show loading spinner
 	if m.loading {
-		content = Center("Loading...", m.width, m.height-1)
+		content = Center("Loading...", m.width, m.height-2)
 	}
 
-	// Build the full view
+	// Build the full view: header + content + modeline
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,
+		m.header.View(),
 		content,
 		m.modeLine.View(),
 	)
@@ -557,6 +647,7 @@ func (m Model) View() string {
 	if m.search.Active {
 		view = lipgloss.JoinVertical(
 			lipgloss.Left,
+			m.header.View(),
 			content,
 			m.search.View(),
 			m.modeLine.View(),
@@ -579,8 +670,9 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	m.currentPage = page
 	m.loading = true
 
-	// Update mode line
+	// Update mode line and header
 	m.modeLine = m.modeLine.SetPage(page)
+	m.header = m.header.SetTitle(m.getPageTitle(page))
 
 	var cmd tea.Cmd
 
@@ -756,10 +848,75 @@ func (m Model) navigateBack() (Model, tea.Cmd) {
 	m.previousPages = m.previousPages[:lastIdx]
 	m.currentPage = prevPage
 
-	// Update mode line
+	// Update mode line and header
 	m.modeLine = m.modeLine.SetPage(prevPage)
+	m.header = m.header.SetTitle(m.getPageTitle(prevPage))
 
 	return m, nil
+}
+
+// getPageTitle returns the title for a given page type
+func (m Model) getPageTitle(page PageType) string {
+	switch page {
+	case PageMenu:
+		return "Aliyun TUI Dashboard"
+	case PageECSList:
+		return "ECS Instances"
+	case PageECSDetail:
+		return "ECS Detail"
+	case PageSecurityGroups:
+		return "Security Groups"
+	case PageSecurityGroupRules:
+		return "Security Group Rules"
+	case PageSecurityGroupInstances:
+		return "Security Group Instances"
+	case PageInstanceSecurityGroups:
+		return "Instance Security Groups"
+	case PageDNSDomains:
+		return "DNS Domains"
+	case PageDNSRecords:
+		return "DNS Records"
+	case PageSLBList:
+		return "SLB Instances"
+	case PageSLBDetail:
+		return "SLB Detail"
+	case PageSLBListeners:
+		return "SLB Listeners"
+	case PageSLBVServerGroups:
+		return "VServer Groups"
+	case PageSLBBackendServers:
+		return "Backend Servers"
+	case PageOSSBuckets:
+		return "OSS Buckets"
+	case PageOSSObjects:
+		return "OSS Objects"
+	case PageOSSObjectDetail:
+		return "OSS Object Detail"
+	case PageRDSList:
+		return "RDS Instances"
+	case PageRDSDetail:
+		return "RDS Detail"
+	case PageRDSDatabases:
+		return "RDS Databases"
+	case PageRDSAccounts:
+		return "RDS Accounts"
+	case PageRedisList:
+		return "Redis Instances"
+	case PageRedisDetail:
+		return "Redis Detail"
+	case PageRedisAccounts:
+		return "Redis Accounts"
+	case PageRocketMQList:
+		return "RocketMQ Instances"
+	case PageRocketMQDetail:
+		return "RocketMQ Detail"
+	case PageRocketMQTopics:
+		return "RocketMQ Topics"
+	case PageRocketMQGroups:
+		return "RocketMQ Groups"
+	default:
+		return "Aliyun TUI"
+	}
 }
 
 // updateCurrentPage delegates update to the current page
@@ -1130,5 +1287,19 @@ func (m *Model) GetServices() *Services {
 // GetClients returns the clients
 func (m *Model) GetClients() *client.AliyunClients {
 	return m.clients
+}
+
+// loadRegions returns a command that loads regions with resources asynchronously
+func (m *Model) loadRegions() tea.Cmd {
+	return func() tea.Msg {
+		regions, err := m.regionService.GetRegionsWithResources()
+		if err != nil {
+			return ErrorMsg{Err: fmt.Errorf("failed to load regions: %w", err)}
+		}
+		return RegionsLoadedMsg{
+			Regions:       regions,
+			CurrentRegion: m.region,
+		}
+	}
 }
 

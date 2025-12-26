@@ -17,6 +17,8 @@ import (
 type ViewportModel struct {
 	viewport    viewport.Model
 	title       string
+	showTitle   bool // Whether to show title in View
+	showHelp    bool // Whether to show help text in View
 	content     string
 	rawContent  string // Original unhighlighted content
 	data        interface{}
@@ -135,17 +137,31 @@ func NewViewportModel(title string, data interface{}) ViewportModel {
 	// No border style here - we add it in View() for full-width control
 
 	m := ViewportModel{
-		viewport: vp,
-		title:    title,
-		data:     data,
-		keys:     DefaultViewportKeyMap(),
-		styles:   DefaultViewportStyles(),
-		focused:  true,
+		viewport:  vp,
+		title:     title,
+		showTitle: false, // Title is now shown in the header bar
+		showHelp:  false, // Help is now shown in the modeline
+		data:      data,
+		keys:      DefaultViewportKeyMap(),
+		styles:    DefaultViewportStyles(),
+		focused:   true,
 	}
 
 	// Format and set content
 	m = m.formatContent()
 
+	return m
+}
+
+// SetShowTitle sets whether to show the title in the view
+func (m ViewportModel) SetShowTitle(show bool) ViewportModel {
+	m.showTitle = show
+	return m
+}
+
+// SetShowHelp sets whether to show the help text in the view
+func (m ViewportModel) SetShowHelp(show bool) ViewportModel {
+	m.showHelp = show
 	return m
 }
 
@@ -259,8 +275,15 @@ func (m ViewportModel) SetTitle(title string) ViewportModel {
 func (m ViewportModel) SetSize(width, height int) ViewportModel {
 	m.width = width
 	m.height = height
-	// Account for: title (1) + help (1) + border (2) + search info (2)
-	vpHeight := height - 6
+	// Account for: border (2) + search info (2)
+	// Title and help are controlled by showTitle and showHelp flags
+	vpHeight := height - 4
+	if m.showTitle {
+		vpHeight -= 1
+	}
+	if m.showHelp {
+		vpHeight -= 1
+	}
 	if vpHeight < 1 {
 		vpHeight = 1
 	}
@@ -336,19 +359,21 @@ func (m ViewportModel) Update(msg tea.Msg) (ViewportModel, tea.Cmd) {
 func (m ViewportModel) View() string {
 	var b strings.Builder
 
-	// Title
-	if m.title != "" {
+	// Title (only show if explicitly enabled)
+	if m.showTitle && m.title != "" {
 		title := m.styles.Title.Render(m.title)
 		b.WriteString(title)
 		b.WriteString("\n")
 	}
 
-	// Help text
-	help := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#6B7280")).
-		Render("q/Esc: back | yy: copy | e: edit | v: pager | /: search | n/N: next/prev")
-	b.WriteString(help)
-	b.WriteString("\n")
+	// Help text (only show if explicitly enabled)
+	if m.showHelp {
+		help := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#6B7280")).
+			Render("q/Esc: back | yy: copy | e: edit | v: pager | /: search | n/N: next/prev")
+		b.WriteString(help)
+		b.WriteString("\n")
+	}
 
 	// Viewport with border that fills the width
 	viewportContent := m.viewport.View()

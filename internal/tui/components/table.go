@@ -17,6 +17,7 @@ type TableModel struct {
 	columns     []table.Column
 	rows        []table.Row
 	title       string
+	showTitle   bool // Whether to show title in View
 	width       int
 	height      int
 	focused     bool
@@ -156,13 +157,20 @@ func NewTableModel(columns []table.Column, title string) TableModel {
 	t.Focus() // Ensure table starts focused
 
 	return TableModel{
-		table:   t,
-		columns: columns,
-		title:   title,
-		keys:    DefaultTableKeyMap(),
-		styles:  DefaultTableStyles(),
-		focused: true,
+		table:     t,
+		columns:   columns,
+		title:     title,
+		showTitle: false, // Title is now shown in the header bar
+		keys:      DefaultTableKeyMap(),
+		styles:    DefaultTableStyles(),
+		focused:   true,
 	}
+}
+
+// SetShowTitle sets whether to show the title in the view
+func (m TableModel) SetShowTitle(show bool) TableModel {
+	m.showTitle = show
+	return m
 }
 
 // SetRows sets the table rows
@@ -355,8 +363,8 @@ func (m TableModel) visibleRows() int {
 func (m TableModel) View() string {
 	var b strings.Builder
 
-	// Title
-	if m.title != "" {
+	// Title (only show if explicitly enabled)
+	if m.showTitle && m.title != "" {
 		title := m.styles.Title.Render(m.title)
 		b.WriteString(title)
 		b.WriteString("\n")

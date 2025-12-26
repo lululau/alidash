@@ -116,14 +116,10 @@ func NewMenuModel() MenuModel {
 		Foreground(lipgloss.Color("#6B7280"))
 
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Aliyun TUI Dashboard"
+	l.SetShowTitle(false) // Title is now shown in the header bar
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
-	l.Styles.Title = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#7C3AED")).
-		MarginLeft(2)
 
 	return MenuModel{
 		list: l,

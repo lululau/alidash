@@ -18,6 +18,7 @@ const (
 	ModalTypeSuccess
 	ModalTypeConfirm
 	ModalTypeProfileSelect
+	ModalTypeRegionSelect
 )
 
 // ModalModel represents a modal dialog
@@ -35,17 +36,24 @@ type ModalModel struct {
 	profiles       []string
 	currentProfile string
 	selectedIndex  int
+
+	// For region selection
+	regionList    list.Model
+	regions       []string
+	currentRegion string
+	regionsLoading bool
 }
 
 // ModalStyles defines styles for the modal
 type ModalStyles struct {
-	Overlay    lipgloss.Style
-	Container  lipgloss.Style
-	Title      lipgloss.Style
-	Message    lipgloss.Style
-	Button     lipgloss.Style
-	InfoColor  lipgloss.Style
-	ErrorColor lipgloss.Style
+	Overlay      lipgloss.Style
+	Container    lipgloss.Style
+	Title        lipgloss.Style
+	Message      lipgloss.Style
+	Button       lipgloss.Style
+	Help         lipgloss.Style
+	InfoColor    lipgloss.Style
+	ErrorColor   lipgloss.Style
 	SuccessColor lipgloss.Style
 }
 
@@ -69,6 +77,8 @@ func DefaultModalStyles() ModalStyles {
 			Foreground(lipgloss.Color("#E5E7EB")).
 			Background(lipgloss.Color("#374151")).
 			Padding(0, 2),
+		Help: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#9CA3AF")),
 		InfoColor: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#3B82F6")),
 		ErrorColor: lipgloss.NewStyle().
@@ -143,9 +153,9 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 
 	// Create compact delegate with minimal spacing
 	delegate := list.NewDefaultDelegate()
-	delegate.SetHeight(1)                  // Single line items
-	delegate.SetSpacing(0)                 // No spacing between items
-	delegate.ShowDescription = false       // Don't show description
+	delegate.SetHeight(1)            // Single line items
+	delegate.SetSpacing(0)           // No spacing between items
+	delegate.ShowDescription = false // Don't show description
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("#F59E0B")).
 		Bold(true).
@@ -154,19 +164,24 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 		Foreground(lipgloss.Color("#E5E7EB"))
 
 	// Calculate appropriate height based on number of profiles
-	listHeight := min(len(profiles)+4, 15)
+	// Add extra height for filter input (3 lines: prompt + input + spacing)
+	listHeight := min(len(profiles)+6, 18)
 
 	l := list.New(items, delegate, 50, listHeight)
-	l.Title = "Select Profile (/ to filter)"
+	l.Title = "Select Profile"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)            // Enable filtering for search
-	l.SetShowHelp(false)
+	l.SetFilteringEnabled(true) // Enable filtering for search
+	l.SetShowHelp(true)         // Show help to indicate / for filter
 	l.Styles.Title = lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#7C3AED"))
 	l.Styles.FilterPrompt = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#F59E0B"))
 	l.Styles.FilterCursor = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.FilterInput.PromptStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.FilterInput.Cursor.Style = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#F59E0B"))
 
 	// Select current profile
@@ -181,7 +196,7 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 		profileList:    l,
 		selectedIndex:  selectedIdx,
 		styles:         DefaultModalStyles(),
-		width:          50,
+		width:          55,
 		height:         listHeight + 4,
 	}
 }
@@ -195,6 +210,93 @@ type profileItem struct {
 func (i profileItem) Title() string       { return i.display }
 func (i profileItem) Description() string { return "" }
 func (i profileItem) FilterValue() string { return i.name }
+
+// regionItem implements list.Item for region selection
+type regionItem struct {
+	id      string
+	display string
+}
+
+func (i regionItem) Title() string       { return i.display }
+func (i regionItem) Description() string { return "" }
+func (i regionItem) FilterValue() string { return i.id }
+
+// NewRegionSelectionModal creates a region selection modal in loading state
+func NewRegionSelectionModal(currentRegion string) ModalModel {
+	return ModalModel{
+		Visible:        true,
+		modalType:      ModalTypeRegionSelect,
+		title:          "Select Region",
+		currentRegion:  currentRegion,
+		regionsLoading: true,
+		styles:         DefaultModalStyles(),
+		width:          60,
+		height:         15,
+	}
+}
+
+// SetRegions updates the region list and exits loading state
+func (m ModalModel) SetRegions(regions []string, currentRegion string) ModalModel {
+	if m.modalType != ModalTypeRegionSelect {
+		return m
+	}
+
+	// Create list items
+	items := make([]list.Item, len(regions))
+	selectedIdx := 0
+	for i, r := range regions {
+		displayName := r
+		if r == currentRegion {
+			displayName = r + " (current)"
+			selectedIdx = i
+		}
+		items[i] = regionItem{id: r, display: displayName}
+	}
+
+	// Create compact delegate with minimal spacing
+	delegate := list.NewDefaultDelegate()
+	delegate.SetHeight(1)
+	delegate.SetSpacing(0)
+	delegate.ShowDescription = false
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(lipgloss.Color("#F59E0B")).
+		Bold(true).
+		Background(lipgloss.Color("#374151"))
+	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
+		Foreground(lipgloss.Color("#E5E7EB"))
+
+	// Calculate appropriate height based on number of regions
+	// Add extra height for filter input (3 lines: prompt + input + spacing)
+	listHeight := min(len(regions)+6, 18)
+
+	l := list.New(items, delegate, 55, listHeight)
+	l.Title = "Select Region"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.SetShowHelp(true) // Show help to indicate / for filter
+	l.Styles.Title = lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#7C3AED"))
+	l.Styles.FilterPrompt = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.Styles.FilterCursor = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.FilterInput.PromptStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.FilterInput.Cursor.Style = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+
+	// Select current region
+	l.Select(selectedIdx)
+
+	m.regionList = l
+	m.regions = regions
+	m.currentRegion = currentRegion
+	m.regionsLoading = false
+	m.height = listHeight + 4
+
+	return m
+}
 
 // Show shows the modal
 func (m ModalModel) Show() ModalModel {
@@ -267,6 +369,54 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 			m.profileList, cmd = m.profileList.Update(msg)
 			return m, cmd
 
+		case ModalTypeRegionSelect:
+			// If still loading, only allow dismiss
+			if m.regionsLoading {
+				switch {
+				case key.Matches(msg, key.NewBinding(key.WithKeys("esc", "q"))):
+					m.Visible = false
+					return m, func() tea.Msg {
+						return ModalDismissedMsg{}
+					}
+				}
+				return m, nil
+			}
+
+			// If list is filtering, let it handle all key events
+			if m.regionList.FilterState() == list.Filtering {
+				var cmd tea.Cmd
+				m.regionList, cmd = m.regionList.Update(msg)
+				return m, cmd
+			}
+
+			switch {
+			case key.Matches(msg, key.NewBinding(key.WithKeys("enter"))):
+				// Select region
+				if item, ok := m.regionList.SelectedItem().(regionItem); ok {
+					m.Visible = false
+					return m, func() tea.Msg {
+						return RegionSelectedMsg{Region: item.id}
+					}
+				}
+
+			case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
+				m.Visible = false
+				return m, func() tea.Msg {
+					return ModalDismissedMsg{}
+				}
+
+			case key.Matches(msg, key.NewBinding(key.WithKeys("q"))):
+				m.Visible = false
+				return m, func() tea.Msg {
+					return ModalDismissedMsg{}
+				}
+			}
+
+			// Forward all other keys to list (for j/k navigation and / filtering)
+			var cmd tea.Cmd
+			m.regionList, cmd = m.regionList.Update(msg)
+			return m, cmd
+
 		default:
 			// Info/Error/Success modals - dismiss on any key
 			switch msg.Type {
@@ -286,6 +436,13 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 		return m, cmd
 	}
 
+	// Update region list if applicable
+	if m.modalType == ModalTypeRegionSelect && !m.regionsLoading {
+		var cmd tea.Cmd
+		m.regionList, cmd = m.regionList.Update(msg)
+		return m, cmd
+	}
+
 	return m, nil
 }
 
@@ -302,6 +459,21 @@ func (m ModalModel) View() string {
 		return m.styles.Container.
 			Width(m.width).
 			Render(m.profileList.View())
+
+	case ModalTypeRegionSelect:
+		if m.regionsLoading {
+			content.WriteString(m.styles.Title.Render("Select Region"))
+			content.WriteString("\n\n")
+			content.WriteString(m.styles.Message.Render("Loading regions with resources..."))
+			content.WriteString("\n\n")
+			content.WriteString(m.styles.Help.Render("Press Esc to cancel"))
+			return m.styles.Container.
+				Width(m.width).
+				Render(content.String())
+		}
+		return m.styles.Container.
+			Width(m.width).
+			Render(m.regionList.View())
 
 	case ModalTypeInfo:
 		title := m.styles.InfoColor.Render(m.title)
@@ -336,6 +508,11 @@ func (m ModalModel) View() string {
 // ProfileSelectedMsg is sent when a profile is selected
 type ProfileSelectedMsg struct {
 	Profile string
+}
+
+// RegionSelectedMsg is sent when a region is selected
+type RegionSelectedMsg struct {
+	Region string
 }
 
 // ModalDismissedMsg is sent when the modal is dismissed

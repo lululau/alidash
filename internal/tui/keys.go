@@ -30,6 +30,7 @@ type KeyMap struct {
 	ViewPager   key.Binding
 	Refresh     key.Binding
 	Profile     key.Binding
+	Region      key.Binding
 	Help        key.Binding
 
 	// Pagination (for OSS)
@@ -123,8 +124,12 @@ func DefaultKeyMap() KeyMap {
 			key.WithHelp("r", "refresh"),
 		),
 		Profile: key.NewBinding(
-			key.WithKeys("O"),
-			key.WithHelp("O", "switch profile"),
+			key.WithKeys("P"),
+			key.WithHelp("P", "switch profile"),
+		),
+		Region: key.NewBinding(
+			key.WithKeys("R"),
+			key.WithHelp("R", "switch region"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

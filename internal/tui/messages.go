@@ -272,6 +272,19 @@ type ProfileListLoadedMsg struct {
 	CurrentProfile string
 }
 
+// --- Region Messages ---
+
+// RegionsLoadedMsg contains the list of available regions with resources
+type RegionsLoadedMsg struct {
+	Regions       []string
+	CurrentRegion string
+}
+
+// RegionSwitchedMsg indicates region was switched successfully
+type RegionSwitchedMsg struct {
+	RegionID string
+}
+
 // --- Modal Messages ---
 
 // ShowModalMsg requests showing a modal dialog

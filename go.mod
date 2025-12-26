@@ -5,9 +5,10 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
-	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.7
+	github.com/alibabacloud-go/darabonba-openapi/v2 v2.1.13
 	github.com/alibabacloud-go/ons-20190214/v3 v3.0.1
-	github.com/alibabacloud-go/tea v1.3.9
+	github.com/alibabacloud-go/resourcecenter-20221201 v1.5.2
+	github.com/alibabacloud-go/tea v1.3.13
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.2+incompatible
 	github.com/atotto/clipboard v0.1.4
