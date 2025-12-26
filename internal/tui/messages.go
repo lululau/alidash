@@ -22,6 +22,7 @@ const (
 	PageECSDetail              = types.PageECSDetail
 	PageECSJSONDetail          = types.PageECSJSONDetail
 	PageECSDisks               = types.PageECSDisks
+	PageECSNetworkInterfaces   = types.PageECSNetworkInterfaces
 	PageSecurityGroups         = types.PageSecurityGroups
 	PageSecurityGroupRules     = types.PageSecurityGroupRules
 	PageSecurityGroupInstances = types.PageSecurityGroupInstances
@@ -83,6 +84,12 @@ type ECSInstanceSelectedMsg struct {
 type ECSDisksLoadedMsg struct {
 	Disks      []ecs.Disk
 	InstanceId string
+}
+
+// ECSNetworkInterfacesLoadedMsg contains loaded ECS network interfaces for an instance
+type ECSNetworkInterfacesLoadedMsg struct {
+	NetworkInterfaces []ecs.NetworkInterfaceSet
+	InstanceId        string
 }
 
 // --- Security Groups Messages ---

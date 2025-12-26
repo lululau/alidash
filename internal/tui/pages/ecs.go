@@ -24,10 +24,11 @@ type ECSListModel struct {
 
 // ECSListKeyMap defines key bindings for ECS list
 type ECSListKeyMap struct {
-	Enter          key.Binding
-	JSONDetail     key.Binding
-	SecurityGroups key.Binding
-	Disks          key.Binding
+	Enter             key.Binding
+	JSONDetail        key.Binding
+	SecurityGroups    key.Binding
+	Disks             key.Binding
+	NetworkInterfaces key.Binding
 }
 
 // DefaultECSListKeyMap returns default key bindings
@@ -48,6 +49,10 @@ func DefaultECSListKeyMap() ECSListKeyMap {
 		Disks: key.NewBinding(
 			key.WithKeys("s"),
 			key.WithHelp("s", "disks/storage"),
+		),
+		NetworkInterfaces: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "network interfaces"),
 		),
 	}
 }
@@ -192,6 +197,16 @@ func (m ECSListModel) Update(msg tea.Msg) (ECSListModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return types.NavigateMsg{
 						Page: types.PageECSDisks,
+						Data: inst.InstanceId,
+					}
+				}
+			}
+
+		case key.Matches(msg, m.keys.NetworkInterfaces):
+			if inst := m.SelectedInstance(); inst != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageECSNetworkInterfaces,
 						Data: inst.InstanceId,
 					}
 				}

@@ -40,6 +40,7 @@ type Model struct {
 	ecsDetailPage      pages.ECSDetailModel // Formatted detail view
 	ecsJSONDetailPage  pages.DetailModel    // JSON detail view
 	ecsDiskPage        pages.ECSDiskModel   // Disk/storage page
+	ecsENIPage         pages.ECSENIModel    // Network interfaces page
 	sgListPage         pages.SecurityGroupsModel
 	sgRulesPage        pages.SecurityGroupRulesModel
 	sgInstancesPage    pages.ECSListModel
@@ -444,6 +445,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ecsDiskPage = m.ecsDiskPage.SetTitle(fmt.Sprintf("云盘 - 实例: %s", msg.InstanceId))
 		m.ecsDiskPage = m.ecsDiskPage.SetSize(m.width, m.height-1)
 
+	case ECSNetworkInterfacesLoadedMsg:
+		m.loading = false
+		m.ecsENIPage = m.ecsENIPage.SetData(msg.NetworkInterfaces)
+		m.ecsENIPage = m.ecsENIPage.SetTitle(fmt.Sprintf("弹性网卡 - 实例: %s", msg.InstanceId))
+		m.ecsENIPage = m.ecsENIPage.SetSize(m.width, m.height-1)
+
 	case DNSDomainsLoadedMsg:
 		m.loading = false
 		m.dnsDomainsPage = m.dnsDomainsPage.SetData(msg.Domains)
@@ -588,6 +595,8 @@ func (m Model) View() string {
 		content = m.ecsJSONDetailPage.View()
 	case PageECSDisks:
 		content = m.ecsDiskPage.View()
+	case PageECSNetworkInterfaces:
+		content = m.ecsENIPage.View()
 	case PageSecurityGroups:
 		content = m.sgListPage.View()
 	case PageSecurityGroupRules:
@@ -717,6 +726,12 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 		if instanceId, ok := data.(string); ok {
 			m.ecsDiskPage = pages.NewECSDiskModel(instanceId)
 			cmd = LoadECSDisks(m.services.ECS, instanceId)
+		}
+
+	case PageECSNetworkInterfaces:
+		if instanceId, ok := data.(string); ok {
+			m.ecsENIPage = pages.NewECSENIModel(instanceId)
+			cmd = LoadECSNetworkInterfaces(m.services.ECS, instanceId)
 		}
 
 	case PageSecurityGroups:
@@ -899,6 +914,8 @@ func (m Model) getPageTitle(page PageType) string {
 		return "ECS JSON Detail"
 	case PageECSDisks:
 		return "ECS Disks"
+	case PageECSNetworkInterfaces:
+		return "ECS Network Interfaces"
 	case PageSecurityGroups:
 		return "Security Groups"
 	case PageSecurityGroupRules:
@@ -973,6 +990,9 @@ func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 
 	case PageECSDisks:
 		m.ecsDiskPage, cmd = m.ecsDiskPage.Update(msg)
+
+	case PageECSNetworkInterfaces:
+		m.ecsENIPage, cmd = m.ecsENIPage.Update(msg)
 
 	case PageSecurityGroups:
 		m.sgListPage, cmd = m.sgListPage.Update(msg)
@@ -1066,6 +1086,8 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, height)
 	case PageECSDisks:
 		m.ecsDiskPage = m.ecsDiskPage.SetSize(m.width, height)
+	case PageECSNetworkInterfaces:
+		m.ecsENIPage = m.ecsENIPage.SetSize(m.width, height)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.SetSize(m.width, height)
 	case PageSecurityGroupRules:
@@ -1149,6 +1171,8 @@ func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.Search(query)
 	case PageECSDisks:
 		m.ecsDiskPage = m.ecsDiskPage.Search(query)
+	case PageECSNetworkInterfaces:
+		m.ecsENIPage = m.ecsENIPage.Search(query)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.Search(query)
 	case PageSecurityGroupRules:
@@ -1215,6 +1239,8 @@ func (m Model) handleSearchNext() (Model, tea.Cmd) {
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.NextSearchMatch()
 	case PageECSDisks:
 		m.ecsDiskPage = m.ecsDiskPage.NextSearchMatch()
+	case PageECSNetworkInterfaces:
+		m.ecsENIPage = m.ecsENIPage.NextSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.NextSearchMatch()
 	case PageSecurityGroupRules:
@@ -1281,6 +1307,8 @@ func (m Model) handleSearchPrev() (Model, tea.Cmd) {
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.PrevSearchMatch()
 	case PageECSDisks:
 		m.ecsDiskPage = m.ecsDiskPage.PrevSearchMatch()
+	case PageECSNetworkInterfaces:
+		m.ecsENIPage = m.ecsENIPage.PrevSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.PrevSearchMatch()
 	case PageSecurityGroupRules:

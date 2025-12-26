@@ -141,6 +141,40 @@ func (s *ECSService) FetchInstancesBySecurityGroup(securityGroupId string) ([]ec
 	return allInstances, nil
 }
 
+// FetchNetworkInterfaces retrieves all network interfaces for a specific ECS instance
+func (s *ECSService) FetchNetworkInterfaces(instanceId string) ([]ecs.NetworkInterfaceSet, error) {
+	var allENIs []ecs.NetworkInterfaceSet
+	pageNumber := 1
+	pageSize := 100
+
+	for {
+		request := ecs.CreateDescribeNetworkInterfacesRequest()
+		request.Scheme = "https"
+		request.InstanceId = instanceId
+		request.PageNumber = requests.NewInteger(pageNumber)
+		request.PageSize = requests.NewInteger(pageSize)
+
+		response, err := s.client.DescribeNetworkInterfaces(request)
+		if err != nil {
+			return nil, fmt.Errorf("describing network interfaces for instance %s (page %d): %w", instanceId, pageNumber, err)
+		}
+
+		allENIs = append(allENIs, response.NetworkInterfaceSets.NetworkInterfaceSet...)
+
+		if len(response.NetworkInterfaceSets.NetworkInterfaceSet) < pageSize {
+			break
+		}
+
+		if len(allENIs) >= response.TotalCount {
+			break
+		}
+
+		pageNumber++
+	}
+
+	return allENIs, nil
+}
+
 // FetchDisks retrieves all disks for a specific ECS instance
 func (s *ECSService) FetchDisks(instanceId string) ([]ecs.Disk, error) {
 	var allDisks []ecs.Disk

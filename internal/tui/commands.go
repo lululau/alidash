@@ -96,6 +96,20 @@ func LoadECSDisks(svc *service.ECSService, instanceId string) tea.Cmd {
 	}
 }
 
+// LoadECSNetworkInterfaces creates a command to load network interfaces for an instance
+func LoadECSNetworkInterfaces(svc *service.ECSService, instanceId string) tea.Cmd {
+	return func() tea.Msg {
+		enis, err := svc.FetchNetworkInterfaces(instanceId)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+		return ECSNetworkInterfacesLoadedMsg{
+			NetworkInterfaces: enis,
+			InstanceId:        instanceId,
+		}
+	}
+}
+
 // --- DNS Commands ---
 
 // LoadDNSDomains creates a command to load DNS domains
