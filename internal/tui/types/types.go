@@ -22,6 +22,7 @@ const (
 	PageSLBVServerGroups
 	PageSLBBackendServers
 	PageSLBForwardingRules
+	PageSLBDefaultServers // SLB default server group page
 	PageOSSBuckets
 	PageOSSObjects
 	PageOSSObjectDetail
@@ -77,6 +78,8 @@ func (p PageType) String() string {
 		return "SLB Backend Servers"
 	case PageSLBForwardingRules:
 		return "SLB Forwarding Rules"
+	case PageSLBDefaultServers:
+		return "SLB Default Servers"
 	case PageOSSBuckets:
 		return "OSS Buckets"
 	case PageOSSObjects:

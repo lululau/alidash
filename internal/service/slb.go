@@ -477,6 +477,113 @@ func (s *SLBService) FetchForwardingRules(loadBalancerId string, listenerPort in
 	return rules, nil
 }
 
+// DefaultServerDetail contains detailed information about a default backend server
+type DefaultServerDetail struct {
+	ServerId         string
+	InstanceName     string
+	Weight           int
+	Zone             string
+	VpcId            string
+	PrivateIpAddress string
+	PublicIpAddress  string
+	Status           string
+}
+
+// FetchDefaultBackendServers retrieves the default backend servers for an SLB instance
+func (s *SLBService) FetchDefaultBackendServers(loadBalancerId string, ecsClient *ecs.Client) ([]DefaultServerDetail, error) {
+	request := slb.CreateDescribeLoadBalancerAttributeRequest()
+	request.Scheme = "https"
+	request.LoadBalancerId = loadBalancerId
+
+	response, err := s.client.DescribeLoadBalancerAttribute(request)
+	if err != nil {
+		return nil, fmt.Errorf("describing SLB attribute for %s: %w", loadBalancerId, err)
+	}
+
+	var servers []DefaultServerDetail
+	for _, server := range response.BackendServers.BackendServer {
+		detail := DefaultServerDetail{
+			ServerId:         server.ServerId,
+			Weight:           server.Weight,
+			InstanceName:     "-",
+			Zone:             "-",
+			VpcId:            "-",
+			PrivateIpAddress: "-",
+			PublicIpAddress:  "-",
+			Status:           "-",
+		}
+
+		// Get ECS instance details
+		if ecsClient != nil {
+			if ecsDetail := s.getECSInstanceDetailFull(server.ServerId, ecsClient); ecsDetail != nil {
+				detail.InstanceName = ecsDetail.InstanceName
+				detail.Zone = ecsDetail.Zone
+				detail.VpcId = ecsDetail.VpcId
+				detail.PrivateIpAddress = ecsDetail.PrivateIpAddress
+				detail.PublicIpAddress = ecsDetail.PublicIpAddress
+				detail.Status = ecsDetail.Status
+			}
+		}
+
+		servers = append(servers, detail)
+	}
+
+	return servers, nil
+}
+
+// ECSInstanceDetailFull contains full ECS instance information
+type ECSInstanceDetailFull struct {
+	InstanceName     string
+	Zone             string
+	VpcId            string
+	PrivateIpAddress string
+	PublicIpAddress  string
+	Status           string
+}
+
+// getECSInstanceDetailFull retrieves full ECS instance details
+func (s *SLBService) getECSInstanceDetailFull(instanceId string, ecsClient *ecs.Client) *ECSInstanceDetailFull {
+	if ecsClient == nil {
+		return nil
+	}
+
+	request := ecs.CreateDescribeInstancesRequest()
+	request.Scheme = "https"
+	request.InstanceIds = fmt.Sprintf("[\"%s\"]", instanceId)
+
+	response, err := ecsClient.DescribeInstances(request)
+	if err != nil || len(response.Instances.Instance) == 0 {
+		return nil
+	}
+
+	instance := response.Instances.Instance[0]
+
+	// Get private IP
+	privateIP := "-"
+	if len(instance.VpcAttributes.PrivateIpAddress.IpAddress) > 0 {
+		privateIP = instance.VpcAttributes.PrivateIpAddress.IpAddress[0]
+	} else if len(instance.InnerIpAddress.IpAddress) > 0 {
+		privateIP = instance.InnerIpAddress.IpAddress[0]
+	}
+
+	// Get public IP or EIP
+	publicIP := "-"
+	if len(instance.PublicIpAddress.IpAddress) > 0 {
+		publicIP = instance.PublicIpAddress.IpAddress[0]
+	} else if instance.EipAddress.IpAddress != "" {
+		publicIP = instance.EipAddress.IpAddress
+	}
+
+	return &ECSInstanceDetailFull{
+		InstanceName:     instance.InstanceName,
+		Zone:             instance.ZoneId,
+		VpcId:            instance.VpcAttributes.VpcId,
+		PrivateIpAddress: privateIP,
+		PublicIpAddress:  publicIP,
+		Status:           instance.Status,
+	}
+}
+
 // getECSInstanceDetail retrieves ECS instance details for a given instance ID
 func (s *SLBService) getECSInstanceDetail(instanceId string, ecsClient *ecs.Client) *ECSInstanceDetail {
 	if ecsClient == nil {

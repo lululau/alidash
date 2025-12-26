@@ -35,6 +35,7 @@ const (
 	PageSLBVServerGroups       = types.PageSLBVServerGroups
 	PageSLBBackendServers      = types.PageSLBBackendServers
 	PageSLBForwardingRules     = types.PageSLBForwardingRules
+	PageSLBDefaultServers      = types.PageSLBDefaultServers
 	PageOSSBuckets             = types.PageOSSBuckets
 	PageOSSObjects             = types.PageOSSObjects
 	PageOSSObjectDetail        = types.PageOSSObjectDetail
@@ -157,10 +158,16 @@ type SLBBackendServersLoadedMsg struct {
 
 // SLBForwardingRulesLoadedMsg contains loaded forwarding rules
 type SLBForwardingRulesLoadedMsg struct {
-	Rules          []service.ForwardingRuleDetail
-	LoadBalancerId string
-	ListenerPort   int
+	Rules            []service.ForwardingRuleDetail
+	LoadBalancerId   string
+	ListenerPort     int
 	ListenerProtocol string
+}
+
+// SLBDefaultServersLoadedMsg contains loaded default backend servers
+type SLBDefaultServersLoadedMsg struct {
+	Servers        []service.DefaultServerDetail
+	LoadBalancerId string
 }
 
 // --- OSS Messages ---

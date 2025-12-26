@@ -25,9 +25,10 @@ type SLBListModel struct {
 
 // SLBListKeyMap defines key bindings
 type SLBListKeyMap struct {
-	Enter        key.Binding
-	Listeners    key.Binding
-	VServerGroups key.Binding
+	Enter          key.Binding
+	Listeners      key.Binding
+	VServerGroups  key.Binding
+	DefaultServers key.Binding
 }
 
 // DefaultSLBListKeyMap returns default key bindings
@@ -44,6 +45,10 @@ func DefaultSLBListKeyMap() SLBListKeyMap {
 		VServerGroups: key.NewBinding(
 			key.WithKeys("v"),
 			key.WithHelp("v", "VServer groups"),
+		),
+		DefaultServers: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "default servers"),
 		),
 	}
 }
@@ -139,6 +144,16 @@ func (m SLBListModel) Update(msg tea.Msg) (SLBListModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return types.NavigateMsg{
 						Page: types.PageSLBVServerGroups,
+						Data: lb.LoadBalancerId,
+					}
+				}
+			}
+
+		case key.Matches(msg, m.keys.DefaultServers):
+			if lb := m.SelectedLoadBalancer(); lb != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageSLBDefaultServers,
 						Data: lb.LoadBalancerId,
 					}
 				}
@@ -755,6 +770,153 @@ func (m SLBForwardingRulesModel) NextSearchMatch() SLBForwardingRulesModel {
 
 // PrevSearchMatch moves to previous search match
 func (m SLBForwardingRulesModel) PrevSearchMatch() SLBForwardingRulesModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
+// SLBDefaultServersModel represents the SLB default server group page
+type SLBDefaultServersModel struct {
+	table          components.TableModel
+	servers        []service.DefaultServerDetail
+	loadBalancerId string
+	width          int
+	height         int
+	keys           SLBDefaultServersKeyMap
+}
+
+// SLBDefaultServersKeyMap defines key bindings for default servers
+type SLBDefaultServersKeyMap struct {
+	Enter key.Binding
+}
+
+// DefaultSLBDefaultServersKeyMap returns default key bindings
+func DefaultSLBDefaultServersKeyMap() SLBDefaultServersKeyMap {
+	return SLBDefaultServersKeyMap{
+		Enter: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "details"),
+		),
+	}
+}
+
+// NewSLBDefaultServersModel creates a new SLB default servers model
+func NewSLBDefaultServersModel() SLBDefaultServersModel {
+	columns := []table.Column{
+		{Title: "云服务器ID/名称", Width: 35},
+		{Title: "可用区", Width: 18},
+		{Title: "VPC", Width: 26},
+		{Title: "公网/内网IP地址", Width: 30},
+		{Title: "状态", Width: 10},
+		{Title: "权重", Width: 8},
+	}
+
+	return SLBDefaultServersModel{
+		table: components.NewTableModel(columns, "默认服务器组"),
+		keys:  DefaultSLBDefaultServersKeyMap(),
+	}
+}
+
+// SetData sets the default servers data
+func (m SLBDefaultServersModel) SetData(servers []service.DefaultServerDetail, loadBalancerId string) SLBDefaultServersModel {
+	m.servers = servers
+	m.loadBalancerId = loadBalancerId
+
+	rows := make([]table.Row, len(servers))
+	rowData := make([]interface{}, len(servers))
+
+	for i, server := range servers {
+		// ID / Name
+		idName := server.ServerId
+		if server.InstanceName != "" && server.InstanceName != "-" {
+			idName = fmt.Sprintf("%s / %s", server.ServerId, server.InstanceName)
+		}
+
+		// IP addresses
+		ipAddr := server.PrivateIpAddress
+		if server.PublicIpAddress != "" && server.PublicIpAddress != "-" {
+			ipAddr = fmt.Sprintf("%s / %s", server.PublicIpAddress, server.PrivateIpAddress)
+		}
+
+		rows[i] = table.Row{
+			idName,
+			server.Zone,
+			server.VpcId,
+			ipAddr,
+			server.Status,
+			fmt.Sprintf("%d", server.Weight),
+		}
+		rowData[i] = server
+	}
+
+	m.table = m.table.SetRows(rows)
+	m.table = m.table.SetRowData(rowData)
+	m.table = m.table.SetTitle(fmt.Sprintf("默认服务器组 - SLB: %s", loadBalancerId))
+	return m
+}
+
+// SetSize sets the size
+func (m SLBDefaultServersModel) SetSize(width, height int) SLBDefaultServersModel {
+	m.width = width
+	m.height = height
+	m.table = m.table.SetSize(width, height)
+	return m
+}
+
+// SelectedServer returns the selected server
+func (m SLBDefaultServersModel) SelectedServer() *service.DefaultServerDetail {
+	idx := m.table.SelectedRow()
+	if idx >= 0 && idx < len(m.servers) {
+		return &m.servers[idx]
+	}
+	return nil
+}
+
+// Init implements tea.Model
+func (m SLBDefaultServersModel) Init() tea.Cmd {
+	return nil
+}
+
+// Update implements tea.Model
+func (m SLBDefaultServersModel) Update(msg tea.Msg) (SLBDefaultServersModel, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.keys.Enter):
+			if server := m.SelectedServer(); server != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageSLBDetail,
+						Data: *server,
+					}
+				}
+			}
+		}
+	}
+
+	var cmd tea.Cmd
+	m.table, cmd = m.table.Update(msg)
+	return m, cmd
+}
+
+// View implements tea.Model
+func (m SLBDefaultServersModel) View() string {
+	return m.table.View()
+}
+
+// Search searches in the list
+func (m SLBDefaultServersModel) Search(query string) SLBDefaultServersModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBDefaultServersModel) NextSearchMatch() SLBDefaultServersModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBDefaultServersModel) PrevSearchMatch() SLBDefaultServersModel {
 	m.table = m.table.PrevSearchMatch()
 	return m
 }

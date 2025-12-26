@@ -176,7 +176,7 @@ func (m ModeLineModel) getShortcuts() string {
 		return "j/k: Navigate | /: Search | yy: Copy | q: Back"
 
 	case types.PageSLBList:
-		return "j/k: Navigate | Enter: Details | l: Listeners | v: VServer Groups | /: Search | q: Back"
+		return "j/k: Navigate | Enter: Details | l: Listeners | v: VServer Groups | s: Default Servers | /: Search | q: Back"
 
 	case types.PageSLBDetail:
 		return "q/Esc: Back | yy: Copy | e: Edit | v: Pager | /: Search | n/N: Next/Prev"
@@ -191,6 +191,9 @@ func (m ModeLineModel) getShortcuts() string {
 		return "j/k: Navigate | /: Search | yy: Copy | q: Back"
 
 	case types.PageSLBForwardingRules:
+		return "j/k: Navigate | Enter: Details | /: Search | yy: Copy | q: Back"
+
+	case types.PageSLBDefaultServers:
 		return "j/k: Navigate | Enter: Details | /: Search | yy: Copy | q: Back"
 
 	case types.PageOSSBuckets:

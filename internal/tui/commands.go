@@ -208,6 +208,20 @@ func LoadSLBForwardingRules(svc *service.SLBService, loadBalancerId string, list
 	}
 }
 
+// LoadSLBDefaultServers creates a command to load default backend servers
+func LoadSLBDefaultServers(svc *service.SLBService, loadBalancerId string, ecsClient *ecs.Client) tea.Cmd {
+	return func() tea.Msg {
+		servers, err := svc.FetchDefaultBackendServers(loadBalancerId, ecsClient)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+		return SLBDefaultServersLoadedMsg{
+			Servers:        servers,
+			LoadBalancerId: loadBalancerId,
+		}
+	}
+}
+
 // --- OSS Commands ---
 
 // LoadOSSBuckets creates a command to load OSS buckets
