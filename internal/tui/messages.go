@@ -20,6 +20,7 @@ const (
 	PageMenu                   = types.PageMenu
 	PageECSList                = types.PageECSList
 	PageECSDetail              = types.PageECSDetail
+	PageECSJSONDetail          = types.PageECSJSONDetail
 	PageSecurityGroups         = types.PageSecurityGroups
 	PageSecurityGroupRules     = types.PageSecurityGroupRules
 	PageSecurityGroupInstances = types.PageSecurityGroupInstances

@@ -25,6 +25,7 @@ type ECSListModel struct {
 // ECSListKeyMap defines key bindings for ECS list
 type ECSListKeyMap struct {
 	Enter          key.Binding
+	JSONDetail     key.Binding
 	SecurityGroups key.Binding
 }
 
@@ -34,6 +35,10 @@ func DefaultECSListKeyMap() ECSListKeyMap {
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "details"),
+		),
+		JSONDetail: key.NewBinding(
+			key.WithKeys("v"),
+			key.WithHelp("v", "JSON details"),
 		),
 		SecurityGroups: key.NewBinding(
 			key.WithKeys("g"),
@@ -146,10 +151,22 @@ func (m ECSListModel) Update(msg tea.Msg) (ECSListModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.keys.Enter):
+			// Enter key opens formatted detail view
 			if inst := m.SelectedInstance(); inst != nil {
 				return m, func() tea.Msg {
 					return types.NavigateMsg{
 						Page: types.PageECSDetail,
+						Data: *inst,
+					}
+				}
+			}
+
+		case key.Matches(msg, m.keys.JSONDetail):
+			// J key opens JSON detail view
+			if inst := m.SelectedInstance(); inst != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageECSJSONDetail,
 						Data: *inst,
 					}
 				}

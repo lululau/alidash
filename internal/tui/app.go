@@ -37,7 +37,8 @@ type Model struct {
 	// Page models
 	menuPage           pages.MenuModel
 	ecsListPage        pages.ECSListModel
-	ecsDetailPage      pages.DetailModel
+	ecsDetailPage      pages.ECSDetailModel // Formatted detail view
+	ecsJSONDetailPage  pages.DetailModel    // JSON detail view
 	sgListPage         pages.SecurityGroupsModel
 	sgRulesPage        pages.SecurityGroupRulesModel
 	sgInstancesPage    pages.ECSListModel
@@ -576,6 +577,8 @@ func (m Model) View() string {
 		content = m.ecsListPage.View()
 	case PageECSDetail:
 		content = m.ecsDetailPage.View()
+	case PageECSJSONDetail:
+		content = m.ecsJSONDetailPage.View()
 	case PageSecurityGroups:
 		content = m.sgListPage.View()
 	case PageSecurityGroupRules:
@@ -682,11 +685,24 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 		cmd = LoadECSInstances(m.services.ECS)
 
 	case PageECSDetail:
-		if inst, ok := data.(interface{}); ok {
-			m.ecsDetailPage = pages.NewDetailModel("ECS Detail", inst)
+		// Try to get ecs.Instance for formatted detail view using the pages package function
+		// This ensures type assertion happens in the same package where ecs.Instance is defined
+		if detailModel, ok := pages.NewECSDetailModelFromInterface(data); ok {
+			m.ecsDetailPage = detailModel
 			m.ecsDetailPage = m.ecsDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
+		} else {
+			// Fallback: if type assertion fails, navigate to JSON detail instead
+			m.ecsJSONDetailPage = pages.NewDetailModel("ECS JSON Detail", data)
+			m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, m.height-1)
+			m.currentPage = PageECSJSONDetail
+			m.loading = false
 		}
+
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage = pages.NewDetailModel("ECS JSON Detail", data)
+		m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, m.height-1)
+		m.loading = false
 
 	case PageSecurityGroups:
 		m.sgListPage = pages.NewSecurityGroupsModel()
@@ -864,6 +880,8 @@ func (m Model) getPageTitle(page PageType) string {
 		return "ECS Instances"
 	case PageECSDetail:
 		return "ECS Detail"
+	case PageECSJSONDetail:
+		return "ECS JSON Detail"
 	case PageSecurityGroups:
 		return "Security Groups"
 	case PageSecurityGroupRules:
@@ -932,6 +950,9 @@ func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 
 	case PageECSDetail:
 		m.ecsDetailPage, cmd = m.ecsDetailPage.Update(msg)
+
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage, cmd = m.ecsJSONDetailPage.Update(msg)
 
 	case PageSecurityGroups:
 		m.sgListPage, cmd = m.sgListPage.Update(msg)
@@ -1021,6 +1042,8 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.ecsListPage = m.ecsListPage.SetSize(m.width, height)
 	case PageECSDetail:
 		m.ecsDetailPage = m.ecsDetailPage.SetSize(m.width, height)
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, height)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.SetSize(m.width, height)
 	case PageSecurityGroupRules:
@@ -1100,6 +1123,8 @@ func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
 		m.ecsListPage = m.ecsListPage.Search(query)
 	case PageECSDetail:
 		m.ecsDetailPage = m.ecsDetailPage.Search(query)
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage = m.ecsJSONDetailPage.Search(query)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.Search(query)
 	case PageSecurityGroupRules:
@@ -1162,6 +1187,8 @@ func (m Model) handleSearchNext() (Model, tea.Cmd) {
 		m.ecsListPage = m.ecsListPage.NextSearchMatch()
 	case PageECSDetail:
 		m.ecsDetailPage = m.ecsDetailPage.NextSearchMatch()
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage = m.ecsJSONDetailPage.NextSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.NextSearchMatch()
 	case PageSecurityGroupRules:
@@ -1224,6 +1251,8 @@ func (m Model) handleSearchPrev() (Model, tea.Cmd) {
 		m.ecsListPage = m.ecsListPage.PrevSearchMatch()
 	case PageECSDetail:
 		m.ecsDetailPage = m.ecsDetailPage.PrevSearchMatch()
+	case PageECSJSONDetail:
+		m.ecsJSONDetailPage = m.ecsJSONDetailPage.PrevSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.PrevSearchMatch()
 	case PageSecurityGroupRules:

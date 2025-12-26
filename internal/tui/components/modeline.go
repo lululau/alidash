@@ -146,9 +146,12 @@ func (m ModeLineModel) getShortcuts() string {
 		return "Enter: Select | j/k: Navigate | Q: Quit | P: Profile | R: Region"
 
 	case types.PageECSList:
-		return "j/k: Navigate | Enter: Details | g: Security Groups | /: Search | yy: Copy | q: Back"
+		return "j/k: Navigate | Enter: Details | v: JSON | g: Security Groups | /: Search | yy: Copy | q: Back"
 
 	case types.PageECSDetail:
+		return "j/k: Row | Tab/S-Tab: Section | yy: Copy | q/Esc: Back"
+
+	case types.PageECSJSONDetail:
 		return "q/Esc: Back | yy: Copy | e: Edit | v: Pager | /: Search | n/N: Next/Prev"
 
 	case types.PageSecurityGroups:

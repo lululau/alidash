@@ -6,7 +6,8 @@ type PageType int
 const (
 	PageMenu PageType = iota
 	PageECSList
-	PageECSDetail
+	PageECSDetail     // New formatted detail view
+	PageECSJSONDetail // JSON detail view (previously PageECSDetail)
 	PageSecurityGroups
 	PageSecurityGroupRules
 	PageSecurityGroupInstances
@@ -43,6 +44,8 @@ func (p PageType) String() string {
 		return "ECS Instances"
 	case PageECSDetail:
 		return "ECS Detail"
+	case PageECSJSONDetail:
+		return "ECS JSON Detail"
 	case PageSecurityGroups:
 		return "Security Groups"
 	case PageSecurityGroupRules:
