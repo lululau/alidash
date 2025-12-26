@@ -4,18 +4,28 @@ import (
 	"fmt"
 	"os"
 
-	"aliyun-tui-viewer/internal/app"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"aliyun-tui-viewer/internal/tui"
 )
 
 func main() {
-	application, err := app.New()
+	// Create new application model
+	model, err := tui.New()
 	if err != nil {
-		fmt.Printf("Error initializing application: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error initializing application: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := application.Run(); err != nil {
-		fmt.Printf("Error running application: %v\n", err)
+	// Create and run the Bubble Tea program
+	p := tea.NewProgram(
+		model,
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error running application: %v\n", err)
 		os.Exit(1)
 	}
 }
