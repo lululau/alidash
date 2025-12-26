@@ -1,6 +1,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -46,8 +47,11 @@ type ModalModel struct {
 	regionsLoading bool
 
 	// For input dialog
-	inputField  textinput.Model
-	inputPrompt string
+	inputField   textinput.Model
+	inputPrompt  string
+	inputHistory []string // History items
+	historyIndex int      // Current position in history (-1 means not browsing)
+	currentInput string   // Saved current input when browsing history
 }
 
 // ModalStyles defines styles for the modal
@@ -243,6 +247,11 @@ func NewRegionSelectionModal(currentRegion string) ModalModel {
 
 // NewInputModal creates an input dialog modal
 func NewInputModal(title, prompt, placeholder string) ModalModel {
+	return NewInputModalWithHistory(title, prompt, placeholder, nil)
+}
+
+// NewInputModalWithHistory creates an input dialog modal with history support
+func NewInputModalWithHistory(title, prompt, placeholder string, history []string) ModalModel {
 	ti := textinput.New()
 	ti.Placeholder = placeholder
 	ti.CharLimit = 256
@@ -258,14 +267,16 @@ func NewInputModal(title, prompt, placeholder string) ModalModel {
 	ti.Focus()
 
 	return ModalModel{
-		Visible:     true,
-		modalType:   ModalTypeInput,
-		title:       title,
-		inputPrompt: prompt,
-		inputField:  ti,
-		styles:      DefaultModalStyles(),
-		width:       60,
-		height:      12,
+		Visible:      true,
+		modalType:    ModalTypeInput,
+		title:        title,
+		inputPrompt:  prompt,
+		inputField:   ti,
+		inputHistory: history,
+		historyIndex: -1, // Not browsing history
+		styles:       DefaultModalStyles(),
+		width:        60,
+		height:       12,
 	}
 }
 
@@ -458,6 +469,7 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 				value := m.inputField.Value()
 				if value != "" {
 					m.Visible = false
+					m.historyIndex = -1
 					return m, func() tea.Msg {
 						return InputSubmittedMsg{Value: value}
 					}
@@ -465,9 +477,39 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 
 			case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
 				m.Visible = false
+				m.historyIndex = -1
 				return m, func() tea.Msg {
 					return ModalDismissedMsg{}
 				}
+
+			case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+p"))):
+				// Previous history item
+				if len(m.inputHistory) > 0 {
+					if m.historyIndex == -1 {
+						// Save current input before browsing history
+						m.currentInput = m.inputField.Value()
+						m.historyIndex = 0
+					} else if m.historyIndex < len(m.inputHistory)-1 {
+						m.historyIndex++
+					}
+					m.inputField.SetValue(m.inputHistory[m.historyIndex])
+					m.inputField.CursorEnd()
+				}
+				return m, nil
+
+			case key.Matches(msg, key.NewBinding(key.WithKeys("ctrl+n"))):
+				// Next history item (more recent)
+				if m.historyIndex > 0 {
+					m.historyIndex--
+					m.inputField.SetValue(m.inputHistory[m.historyIndex])
+					m.inputField.CursorEnd()
+				} else if m.historyIndex == 0 {
+					// Return to current input
+					m.historyIndex = -1
+					m.inputField.SetValue(m.currentInput)
+					m.inputField.CursorEnd()
+				}
+				return m, nil
 			}
 
 			// Forward all other keys to text input
@@ -573,7 +615,14 @@ func (m ModalModel) View() string {
 		}
 		content.WriteString(m.inputField.View())
 		content.WriteString("\n\n")
-		content.WriteString(m.styles.Help.Render("Enter: 确认 | Esc: 取消"))
+		helpText := "Enter: 确认 | Esc: 取消"
+		if len(m.inputHistory) > 0 {
+			helpText += " | C-p/C-n: 历史"
+			if m.historyIndex >= 0 {
+				helpText += fmt.Sprintf(" [%d/%d]", m.historyIndex+1, len(m.inputHistory))
+			}
+		}
+		content.WriteString(m.styles.Help.Render(helpText))
 	}
 
 	return m.styles.Container.

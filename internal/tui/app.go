@@ -73,6 +73,9 @@ type Model struct {
 	// Services for finder
 	finderService *service.FinderService
 
+	// Input history for finder
+	inputHistory *config.InputHistory
+
 	// Shared components
 	header   components.HeaderModel
 	modeLine components.ModeLineModel
@@ -147,6 +150,9 @@ func New() (*Model, error) {
 		services.RocketMQ,
 	)
 
+	// Load input history
+	inputHistory := config.LoadInputHistory()
+
 	// Create region service
 	regionService := service.NewRegionService(cfg.AccessKeyID, cfg.AccessKeySecret, currentProfile)
 
@@ -160,6 +166,7 @@ func New() (*Model, error) {
 		services:      services,
 		clients:       clients,
 		finderService: finderService,
+		inputHistory:  inputHistory,
 		styles:        GlobalStyles,
 		keys:          GlobalKeyMap,
 	}
@@ -219,8 +226,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.FindResource):
-			// Open resource finder input dialog
-			m.modal = components.NewInputModal("资源查找", "请输入 IP 地址或域名:", "例如: 192.168.1.1 或 example.com")
+			// Open resource finder input dialog with history
+			m.modal = components.NewInputModalWithHistory(
+				"资源查找",
+				"请输入 IP 地址或域名:",
+				"例如: 192.168.1.1 或 example.com",
+				m.inputHistory.Items,
+			)
 			return m, nil
 
 		case key.Matches(msg, m.keys.Region):
@@ -438,6 +450,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle input modal submission for resource finder
 	case components.InputSubmittedMsg:
+		// Save to history
+		m.inputHistory.Add(msg.Value)
+		_ = m.inputHistory.Save() // Ignore save errors
+
 		// Start resource finding
 		m.loading = true
 		return m, FindResources(m.finderService, msg.Value)

@@ -286,3 +286,90 @@ func GetPager() (string, error) {
 	// Default to less
 	return "less", nil
 }
+
+// InputHistory manages input history for the finder
+type InputHistory struct {
+	Items    []string `json:"items"`
+	MaxItems int      `json:"-"`
+}
+
+// historyFilePath returns the path to the history file
+func historyFilePath() string {
+	usr, err := user.Current()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(usr.HomeDir, ".aliyun", "tali_history.json")
+}
+
+// LoadInputHistory loads input history from file
+func LoadInputHistory() *InputHistory {
+	h := &InputHistory{
+		Items:    []string{},
+		MaxItems: 100,
+	}
+
+	path := historyFilePath()
+	if path == "" {
+		return h
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return h
+	}
+
+	_ = json.Unmarshal(data, h)
+	h.MaxItems = 100
+	return h
+}
+
+// Save saves the input history to file
+func (h *InputHistory) Save() error {
+	path := historyFilePath()
+	if path == "" {
+		return fmt.Errorf("could not determine history file path")
+	}
+
+	data, err := json.MarshalIndent(h, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(path, data, 0644)
+}
+
+// Add adds an item to the history
+func (h *InputHistory) Add(item string) {
+	if item == "" {
+		return
+	}
+
+	// Remove duplicates
+	newItems := []string{item}
+	for _, existing := range h.Items {
+		if existing != item {
+			newItems = append(newItems, existing)
+		}
+	}
+
+	// Limit to max items
+	if len(newItems) > h.MaxItems {
+		newItems = newItems[:h.MaxItems]
+	}
+
+	h.Items = newItems
+}
+
+// Get returns the item at the given index (0 = most recent)
+func (h *InputHistory) Get(index int) string {
+	if index < 0 || index >= len(h.Items) {
+		return ""
+	}
+	return h.Items[index]
+}
+
+// Len returns the number of items in history
+func (h *InputHistory) Len() int {
+	return len(h.Items)
+}
