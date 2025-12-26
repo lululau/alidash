@@ -105,8 +105,10 @@ Listeners   VServer Groups  Details
 
 ## Advanced Features
 
-### Profile Switching
-- Press `O` (uppercase O) from anywhere to switch between different Alibaba Cloud profiles
+### Profile and Region Switching
+- Press `P` (uppercase P) from anywhere to switch between different Alibaba Cloud profiles
+- Press `R` (uppercase R) from anywhere to switch between different regions
+- Region list only shows regions where your account has resources
 - Useful when managing multiple accounts or regions
 
 ### Error Handling
@@ -124,7 +126,7 @@ Listeners   VServer Groups  Details
 
 4. **Check all levels**: Don't forget to check both listeners (`l`) and virtual server groups (`v`) for complete understanding
 
-5. **Use profiles**: If managing multiple environments, set up different profiles and use `O` to switch between them
+5. **Use profiles**: If managing multiple environments, set up different profiles and use `P` to switch between them, or `R` to switch regions
 
 ## Troubleshooting
 

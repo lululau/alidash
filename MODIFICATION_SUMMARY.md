@@ -20,33 +20,24 @@
 **加载逻辑修改:**
 - `LoadAliyunConfig()` 函数现在从配置文件顶层读取 `editor` 和 `pager` 字段
 
-### 2. `internal/ui/utils.go`
+### 2. `internal/tui/` - Bubble Tea UI 框架
 
-**新增函数:**
-- `OpenInEditor()` - 使用配置的编辑器打开JSON数据
-- `OpenInPager()` - 使用配置的分页器查看JSON数据
+**UI 架构:**
+- 使用 Bubble Tea (Elm architecture) 重构整个 UI 层
+- `internal/tui/components/` - 可复用 UI 组件（表格、模态框、视口等）
+- `internal/tui/pages/` - 各服务的页面模型
+- `internal/tui/app.go` - 主应用程序模型
 
-**功能特点:**
+**编辑器和分页器功能:**
+- `OpenInEditor()` - 使用配置的编辑器打开 JSON 数据
+- `OpenInPager()` - 使用配置的分页器查看 JSON 数据
 - 支持带参数的命令（如 `"less -R"`）
 - 自动创建和清理临时文件
-- 正确处理tview应用的挂起和恢复
 
-### 3. `internal/ui/components.go`
-
-**修改函数:**
-- `CreateInteractiveJSONDetailViewWithSearch()` - 添加了 `onPager` 参数
-- 添加了 `v` 键的输入处理
-- 更新了帮助文本，将 "edit in nvim" 改为 "edit"，并添加了 "v: view in pager"
-
-**更新快捷键说明:**
-- 所有详情页面的快捷键说明都更新为包含新的 `v` 键功能
-
-### 4. `internal/app/navigation.go`
-
-**全面更新:**
-- 所有 `CreateInteractiveJSONDetailViewWithSearch` 调用都添加了 `onPager` 回调函数
-- 所有 `OpenInNvimWithSuspend` 调用都替换为 `OpenInEditor`
-- 为每个详情页面添加了分页器功能
+**详情页面快捷键:**
+- `e` 键: 在外部编辑器中编辑 JSON
+- `v` 键: 在分页器中查看 JSON
+- `yy`: 复制 JSON 到剪贴板
 
 ## 新增按键绑定
 

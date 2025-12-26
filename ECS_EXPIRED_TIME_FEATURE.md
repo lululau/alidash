@@ -8,13 +8,13 @@
 
 ### 1. 修改的文件
 
-#### `internal/ui/views.go`
-- **`CreateEcsListView()` 函数**:
+#### `internal/tui/pages/ecs.go`
+- **ECS 实例列表**:
   - 在表头中添加 "Expired Time" 列
   - 从 ECS 实例的 `ExpiredTime` 字段获取过期时间数据
   - 如果过期时间为空，显示 "N/A"
 
-- **`CreateSecurityGroupInstancesView()` 函数**:
+- **安全组关联实例列表**:
   - 同样添加 "Expired Time" 列，保持与主 ECS 列表的一致性
   - 适用于查看使用特定安全组的实例列表
 
@@ -47,9 +47,10 @@ if instance.ExpiredTime != "" {
 }
 ```
 
-### 表格单元格设置
+### 表格行设置
 ```go
-table.SetCell(r+1, 7, tview.NewTableCell(expiredTime).SetTextColor(tcell.ColorWhite).SetExpansion(1))
+// 使用 Bubble Tea 的 table 组件设置行数据
+row := table.Row{instanceId, status, zone, cpuRam, privateIp, publicIp, name, expiredTime}
 ```
 
 ## 影响范围

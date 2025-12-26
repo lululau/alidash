@@ -143,7 +143,8 @@ The application uses vim-style keyboard navigation with contextual shortcuts dis
 #### Global Controls
 - `Q` - Quit application (uppercase Q)
 - `q` or `Esc` - Go back to previous screen/menu
-- `O` - Open profile selection dialog (uppercase O)
+- `P` - Open profile selection dialog (uppercase P)
+- `R` - Open region selection dialog (uppercase R)
 - `Ctrl+C` - Force quit
 
 #### Main Menu Navigation
@@ -208,15 +209,31 @@ The application uses vim-style keyboard navigation with contextual shortcuts dis
 - Works in all table views and JSON detail views
 
 #### Profile Management
-- Press `O` to open profile selection dialog
+- Press `P` to open profile selection dialog
 - Use `j/k` to navigate available profiles
+- Use `/` to filter profiles by name
 - Press `Enter` to select a profile
 - Press `q` or `Esc` to cancel
 - After switching profiles:
   - All client connections are recreated
   - All cached data is cleared
+  - Region resets to the profile's default region
   - Application returns to main menu
   - New credentials take effect immediately
+
+#### Region Management
+- Press `R` to open region selection dialog
+- The region list only shows regions where your account has resources
+- Region list is cached per profile (7-day expiration, stored in `~/.aliyun/region_cache.json`)
+- Use `j/k` to navigate available regions
+- Use `/` to filter regions
+- Press `Enter` to select a region
+- Press `q` or `Esc` to cancel
+- After switching regions:
+  - All client connections are recreated with the new region
+  - All cached data is cleared
+  - Application returns to main menu
+  - New region takes effect immediately
 
 #### OSS Object Pagination
 - `[` - Previous page
@@ -361,8 +378,9 @@ The project uses Go modules. Key dependencies include:
 
 - `github.com/aliyun/alibaba-cloud-sdk-go` - Alibaba Cloud SDK
 - `github.com/aliyun/aliyun-oss-go-sdk` - OSS SDK
-- `github.com/rivo/tview` - Terminal UI framework
-- `github.com/gdamore/tcell/v2` - Terminal cell manipulation
+- `github.com/charmbracelet/bubbletea` - Terminal UI framework (Elm architecture)
+- `github.com/charmbracelet/bubbles` - TUI components (table, list, viewport, etc.)
+- `github.com/charmbracelet/lipgloss` - Style definitions for terminal rendering
 
 ### Building from Source
 
@@ -383,11 +401,17 @@ go build -o tali cmd/main.go
 tali/
 ├── cmd/                    # Application entry point
 ├── internal/
-│   ├── app/               # Application logic and navigation
 │   ├── client/            # Alibaba Cloud client management
 │   ├── config/            # Configuration loading and management
-│   ├── service/           # Service layer for API calls
-│   └── ui/                # User interface components
+│   ├── service/           # Service layer for API calls (including RegionService)
+│   └── tui/               # Terminal user interface (Bubble Tea)
+│       ├── components/    # Reusable UI components (table, modal, header, etc.)
+│       ├── pages/         # Page models for each service
+│       ├── types/         # Shared types and messages
+│       ├── app.go         # Main application model
+│       ├── keys.go        # Key bindings
+│       ├── messages.go    # Message types
+│       └── styles.go      # Style definitions
 ├── go.mod                 # Go module definition
 ├── go.sum                 # Go module checksums
 └── README.md             # This file

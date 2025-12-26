@@ -48,26 +48,23 @@ This document describes the implementation of the SLB feature in the tali applic
 - **Added `FetchDetailedBackendServers(vServerGroupId string, ecsClient)`**: Retrieves backend servers with ECS instance details
 - **Added helper methods**: `fetchHTTPListenerDetail`, `fetchHTTPSListenerDetail`, `fetchTCPListenerDetail`, `fetchUDPListenerDetail`, `getECSInstanceDetail`
 
-### 2. UI Constants (`internal/ui/constants.go`)
-- Added `PageSlbListeners = "slbListeners"`
-- Added `PageSlbVServerGroups = "slbVServerGroups"`
-- Added `PageSlbVServerGroupBackendServers = "slbVServerGroupBackendServers"`
+### 2. Page Types (`internal/tui/types/pages.go`)
+- Added `PageSLBListeners`
+- Added `PageSLBVServerGroups`
+- Added `PageSLBBackendServers`
 
-### 3. UI Views (`internal/ui/views.go`)
-- **Added `CreateSlbListenersView()`**: Creates basic listeners table view
-- **Added `CreateSlbDetailedListenersView()`**: Creates detailed listeners table view with protocol, backend port, status, health check, scheduler, and server group information
-- **Added `CreateSlbVServerGroupsView()`**: Creates basic virtual server groups table view
-- **Added `CreateSlbDetailedVServerGroupsView()`**: Creates detailed virtual server groups table view with backend count and associated listeners
-- **Added `CreateSlbVServerGroupBackendServersView()`**: Creates basic backend servers table view
-- **Added `CreateSlbDetailedBackendServersView()`**: Creates detailed backend servers table view with ECS instance name, private IP, and public IP/EIP information
+### 3. SLB Pages (`internal/tui/pages/slb.go`)
+- **SLBListModel**: SLB instances list with navigation
+- **SLBListenersModel**: Listeners table with protocol, backend port, status, health check, scheduler, and server group information
+- **SLBVServerGroupsModel**: Virtual server groups table with backend count and associated listeners
+- **SLBBackendServersModel**: Backend servers table with ECS instance name, private IP, and public IP/EIP information
 
-### 4. Application State (`internal/app/app.go`)
-- Added UI component fields:
-  - `slbListenersTable *tview.Table`
-  - `slbVServerGroupsTable *tview.Table`
-  - `slbVServerGroupBackendServersTable *tview.Table`
+### 4. Application State (`internal/tui/app.go`)
+- Uses Bubble Tea's Model-Update-View architecture
+- Page models stored in the main application model
+- Navigation handled via message passing
 
-### 5. Navigation (`internal/app/navigation.go`)
+### 5. Navigation (`internal/tui/app.go`)
 - **Added `setupSlbKeyHandlers()`**: Sets up key handlers for SLB-specific actions
   - `l` key: Navigate to listeners view
   - `v` key: Navigate to virtual server groups view

@@ -9,11 +9,8 @@
 ```
 tali/
 ├── cmd/
-│   └── main.go                    # 简化的主程序入口 (22行)
+│   └── main.go                    # 简化的主程序入口
 ├── internal/
-│   ├── app/                       # 应用程序控制器
-│   │   ├── app.go                 # 主应用程序结构和初始化
-│   │   └── navigation.go          # 页面导航和事件处理
 │   ├── client/                    # 阿里云客户端管理
 │   │   └── client.go              # 统一的客户端创建和管理
 │   ├── config/                    # 配置管理
@@ -23,13 +20,34 @@ tali/
 │   │   ├── dns.go                 # DNS 服务
 │   │   ├── slb.go                 # SLB 服务
 │   │   ├── rds.go                 # RDS 服务
-│   │   └── oss.go                 # OSS 服务
-│   └── ui/                        # 用户界面组件
-│       ├── constants.go           # UI 常量定义
-│       ├── components.go          # 通用 UI 组件
-│       ├── menu.go                # 主菜单组件
-│       ├── views.go               # 各种视图组件
-│       └── modal.go               # 模态框组件
+│   │   ├── oss.go                 # OSS 服务
+│   │   ├── redis.go               # Redis 服务
+│   │   ├── rocketmq.go            # RocketMQ 服务
+│   │   └── region.go              # Region 服务（查询和缓存有资源的区域）
+│   └── tui/                       # 用户界面 (Bubble Tea)
+│       ├── components/            # 可复用 UI 组件
+│       │   ├── header.go          # 顶部标题栏（标题+Profile+Region）
+│       │   ├── modeline.go        # 底部快捷键提示栏
+│       │   ├── modal.go           # 模态框组件
+│       │   ├── search.go          # 搜索组件
+│       │   ├── table.go           # 表格组件
+│       │   └── viewport.go        # JSON 视口组件
+│       ├── pages/                 # 各服务的页面模型
+│       │   ├── menu.go            # 主菜单
+│       │   ├── ecs.go             # ECS 页面
+│       │   ├── securitygroups.go  # 安全组页面
+│       │   ├── dns.go             # DNS 页面
+│       │   ├── slb.go             # SLB 页面
+│       │   ├── oss.go             # OSS 页面
+│       │   ├── rds.go             # RDS 页面
+│       │   ├── redis.go           # Redis 页面
+│       │   └── rocketmq.go        # RocketMQ 页面
+│       ├── types/                 # 共享类型定义
+│       │   └── types.go           # 页面类型和消息类型
+│       ├── app.go                 # 主应用程序模型 (Model-Update-View)
+│       ├── keys.go                # 按键绑定定义
+│       ├── messages.go            # 消息类型定义
+│       └── styles.go              # 样式定义
 ├── go.mod
 ├── go.sum
 ├── README.md
@@ -55,15 +73,18 @@ tali/
 - 封装具体的 API 调用逻辑
 - 提供统一的错误处理
 
-### 5. `internal/ui/` - 用户界面层
-- 分离 UI 组件的创建和管理
-- 提供可复用的 UI 组件
-- 统一的样式和交互逻辑
+### 5. `internal/tui/` - 用户界面层 (Bubble Tea)
+- 使用 Bubble Tea 框架 (Elm 架构: Model-Update-View)
+- `components/` - 可复用 UI 组件（表格、模态框、视口等）
+- `pages/` - 各服务的页面模型
+- `types/` - 共享类型和消息定义
+- 统一的样式定义和按键绑定
 
-### 6. `internal/app/` - 应用程序控制器
-- 协调各个模块的工作
-- 管理应用程序状态和生命周期
-- 处理用户交互和页面导航
+### 6. `internal/tui/app.go` - 主应用程序模型
+- 实现 `tea.Model` 接口
+- 管理全局状态（当前页面、Profile、Region 等）
+- 处理全局按键和消息路由
+- 协调页面导航和数据加载
 
 ## 重构带来的好处
 

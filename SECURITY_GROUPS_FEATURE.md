@@ -11,40 +11,31 @@ This document describes the implementation of the Security Groups feature in the
 - Implements pagination to retrieve all security groups
 - Uses the same error handling pattern as `FetchInstances()`
 
-### 2. UI Constants (`internal/ui/constants.go`)
-- Added `PageSecurityGroups = "securityGroups"`
-- Added `PageSecurityGroupDetail = "securityGroupDetail"`
+### 2. Page Types (`internal/tui/types/pages.go`)
+- Added `PageSecurityGroups`
+- Added `PageSecurityGroupRules`
+- Added `PageSecurityGroupInstances`
+- Added `PageInstanceSecurityGroups`
 
-### 3. UI Views (`internal/ui/views.go`)
-- Added `CreateSecurityGroupsListView()` function
-  - Creates a table with columns: Security Group ID, Name, Description, VPC ID, Type, Creation Time
-  - Handles empty state with appropriate message
-  - Sets up proper cell references for navigation
-- Added `CreateSecurityGroupDetailView()` function
-  - Creates JSON detail view for security group data
-  - Follows the same pattern as ECS detail view
+### 3. Security Groups Pages (`internal/tui/pages/securitygroups.go`)
+- **SecurityGroupsModel**: Security groups list with columns: Security Group ID, Name, Description, VPC ID, Type, Creation Time
+- **SecurityGroupRulesModel**: Security group rules list
+- Supports navigation to view instances using a security group
+- Follows the Bubble Tea Model-Update-View pattern
 
-### 4. Main Menu (`internal/ui/menu.go`)
+### 4. Main Menu (`internal/tui/pages/menu.go`)
 - Added security groups option to the main menu
 - Assigned shortcut key 'g' for security groups
-- Updated function signature to include `onSecurityGroups` callback
 
-### 5. Application State (`internal/app/app.go`)
-- Added `securityGroupTable` and `securityGroupDetailView` UI components
-- Added `allSecurityGroups` data cache field
-- Updated main menu creation to include security groups callback
+### 5. Application State (`internal/tui/app.go`)
+- Page models managed in the main Model struct
+- Navigation via message passing
+- Data caching with automatic clear on profile/region switch
 
-### 6. Navigation (`internal/app/navigation.go`)
-- Added `switchToSecurityGroupsListView()` function
-  - Implements caching (only fetches once)
-  - Sets up table navigation with search functionality
-  - Handles row selection to show detail view
-  - Includes copy and edit functionality (yy and e keys)
-  - Sets up yank functionality for copying row data
-- Updated `handleEscapeKey()` and `handleBackKey()` functions
-  - Added navigation handling for security groups pages
-- Updated `clearCachedData()` function
-  - Clears security groups cache when switching profiles
+### 6. Navigation
+- Navigation handled via `NavigateMsg` and `GoBackMsg` messages
+- Back navigation using page stack
+- Automatic data clearing on profile switch
 
 ### 7. Documentation (`README.md`)
 - Updated main menu options to include security groups

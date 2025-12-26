@@ -116,12 +116,11 @@
    - 批量查询ECS实例信息
    - 处理私有IP和公网IP/EIP的优先级显示
 
-### UI层改进 (`internal/ui/views.go`)
+### UI层改进 (`internal/tui/pages/slb.go`)
 
-1. **新增详细视图函数**：
-   - `CreateSlbDetailedListenersView()`
-   - `CreateSlbDetailedVServerGroupsView()`
-   - `CreateSlbDetailedBackendServersView()`
+1. **使用 Bubble Tea 框架重构**：
+   - 基于 `bubbles/table` 组件构建表格视图
+   - 使用 Elm 架构的 Model-Update-View 模式
 
 2. **中文列标题支持**：
    - "服务器组"
@@ -130,7 +129,7 @@
    - "内网IP"
    - "公网IP/EIP"
 
-### 导航层改进 (`internal/app/navigation.go`)
+### 导航层改进 (`internal/tui/app.go`)
 
 1. **更新导航方法**：
    - 使用新的详细获取方法
