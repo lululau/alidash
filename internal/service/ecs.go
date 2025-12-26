@@ -141,6 +141,40 @@ func (s *ECSService) FetchInstancesBySecurityGroup(securityGroupId string) ([]ec
 	return allInstances, nil
 }
 
+// FetchDisks retrieves all disks for a specific ECS instance
+func (s *ECSService) FetchDisks(instanceId string) ([]ecs.Disk, error) {
+	var allDisks []ecs.Disk
+	pageNumber := 1
+	pageSize := 100
+
+	for {
+		request := ecs.CreateDescribeDisksRequest()
+		request.Scheme = "https"
+		request.InstanceId = instanceId
+		request.PageNumber = requests.NewInteger(pageNumber)
+		request.PageSize = requests.NewInteger(pageSize)
+
+		response, err := s.client.DescribeDisks(request)
+		if err != nil {
+			return nil, fmt.Errorf("describing disks for instance %s (page %d): %w", instanceId, pageNumber, err)
+		}
+
+		allDisks = append(allDisks, response.Disks.Disk...)
+
+		if len(response.Disks.Disk) < pageSize {
+			break
+		}
+
+		if len(allDisks) >= response.TotalCount {
+			break
+		}
+
+		pageNumber++
+	}
+
+	return allDisks, nil
+}
+
 // FetchSecurityGroupsByInstance retrieves security groups for a specific ECS instance
 func (s *ECSService) FetchSecurityGroupsByInstance(instanceId string) ([]ecs.SecurityGroup, error) {
 	// 首先获取实例详情以获取安全组ID列表

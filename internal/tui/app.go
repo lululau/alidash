@@ -39,6 +39,7 @@ type Model struct {
 	ecsListPage        pages.ECSListModel
 	ecsDetailPage      pages.ECSDetailModel // Formatted detail view
 	ecsJSONDetailPage  pages.DetailModel    // JSON detail view
+	ecsDiskPage        pages.ECSDiskModel   // Disk/storage page
 	sgListPage         pages.SecurityGroupsModel
 	sgRulesPage        pages.SecurityGroupRulesModel
 	sgInstancesPage    pages.ECSListModel
@@ -437,6 +438,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.instSGPage = m.instSGPage.SetTitle(fmt.Sprintf("Security Groups for Instance: %s", msg.InstanceId))
 		m.instSGPage = m.instSGPage.SetSize(m.width, m.height-1)
 
+	case ECSDisksLoadedMsg:
+		m.loading = false
+		m.ecsDiskPage = m.ecsDiskPage.SetData(msg.Disks)
+		m.ecsDiskPage = m.ecsDiskPage.SetTitle(fmt.Sprintf("云盘 - 实例: %s", msg.InstanceId))
+		m.ecsDiskPage = m.ecsDiskPage.SetSize(m.width, m.height-1)
+
 	case DNSDomainsLoadedMsg:
 		m.loading = false
 		m.dnsDomainsPage = m.dnsDomainsPage.SetData(msg.Domains)
@@ -579,6 +586,8 @@ func (m Model) View() string {
 		content = m.ecsDetailPage.View()
 	case PageECSJSONDetail:
 		content = m.ecsJSONDetailPage.View()
+	case PageECSDisks:
+		content = m.ecsDiskPage.View()
 	case PageSecurityGroups:
 		content = m.sgListPage.View()
 	case PageSecurityGroupRules:
@@ -703,6 +712,12 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 		m.ecsJSONDetailPage = pages.NewDetailModel("ECS JSON Detail", data)
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, m.height-1)
 		m.loading = false
+
+	case PageECSDisks:
+		if instanceId, ok := data.(string); ok {
+			m.ecsDiskPage = pages.NewECSDiskModel(instanceId)
+			cmd = LoadECSDisks(m.services.ECS, instanceId)
+		}
 
 	case PageSecurityGroups:
 		m.sgListPage = pages.NewSecurityGroupsModel()
@@ -882,6 +897,8 @@ func (m Model) getPageTitle(page PageType) string {
 		return "ECS Detail"
 	case PageECSJSONDetail:
 		return "ECS JSON Detail"
+	case PageECSDisks:
+		return "ECS Disks"
 	case PageSecurityGroups:
 		return "Security Groups"
 	case PageSecurityGroupRules:
@@ -953,6 +970,9 @@ func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 
 	case PageECSJSONDetail:
 		m.ecsJSONDetailPage, cmd = m.ecsJSONDetailPage.Update(msg)
+
+	case PageECSDisks:
+		m.ecsDiskPage, cmd = m.ecsDiskPage.Update(msg)
 
 	case PageSecurityGroups:
 		m.sgListPage, cmd = m.sgListPage.Update(msg)
@@ -1044,6 +1064,8 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.ecsDetailPage = m.ecsDetailPage.SetSize(m.width, height)
 	case PageECSJSONDetail:
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.SetSize(m.width, height)
+	case PageECSDisks:
+		m.ecsDiskPage = m.ecsDiskPage.SetSize(m.width, height)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.SetSize(m.width, height)
 	case PageSecurityGroupRules:
@@ -1125,6 +1147,8 @@ func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
 		m.ecsDetailPage = m.ecsDetailPage.Search(query)
 	case PageECSJSONDetail:
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.Search(query)
+	case PageECSDisks:
+		m.ecsDiskPage = m.ecsDiskPage.Search(query)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.Search(query)
 	case PageSecurityGroupRules:
@@ -1189,6 +1213,8 @@ func (m Model) handleSearchNext() (Model, tea.Cmd) {
 		m.ecsDetailPage = m.ecsDetailPage.NextSearchMatch()
 	case PageECSJSONDetail:
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.NextSearchMatch()
+	case PageECSDisks:
+		m.ecsDiskPage = m.ecsDiskPage.NextSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.NextSearchMatch()
 	case PageSecurityGroupRules:
@@ -1253,6 +1279,8 @@ func (m Model) handleSearchPrev() (Model, tea.Cmd) {
 		m.ecsDetailPage = m.ecsDetailPage.PrevSearchMatch()
 	case PageECSJSONDetail:
 		m.ecsJSONDetailPage = m.ecsJSONDetailPage.PrevSearchMatch()
+	case PageECSDisks:
+		m.ecsDiskPage = m.ecsDiskPage.PrevSearchMatch()
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.PrevSearchMatch()
 	case PageSecurityGroupRules:

@@ -21,6 +21,7 @@ const (
 	PageECSList                = types.PageECSList
 	PageECSDetail              = types.PageECSDetail
 	PageECSJSONDetail          = types.PageECSJSONDetail
+	PageECSDisks               = types.PageECSDisks
 	PageSecurityGroups         = types.PageSecurityGroups
 	PageSecurityGroupRules     = types.PageSecurityGroupRules
 	PageSecurityGroupInstances = types.PageSecurityGroupInstances
@@ -76,6 +77,12 @@ type ECSInstancesLoadedMsg struct {
 // ECSInstanceSelectedMsg indicates an ECS instance was selected
 type ECSInstanceSelectedMsg struct {
 	Instance ecs.Instance
+}
+
+// ECSDisksLoadedMsg contains loaded ECS disks for an instance
+type ECSDisksLoadedMsg struct {
+	Disks      []ecs.Disk
+	InstanceId string
 }
 
 // --- Security Groups Messages ---

@@ -82,6 +82,20 @@ func LoadInstanceSecurityGroups(svc *service.ECSService, instanceId string) tea.
 	}
 }
 
+// LoadECSDisks creates a command to load disks for an instance
+func LoadECSDisks(svc *service.ECSService, instanceId string) tea.Cmd {
+	return func() tea.Msg {
+		disks, err := svc.FetchDisks(instanceId)
+		if err != nil {
+			return ErrorMsg{Err: err}
+		}
+		return ECSDisksLoadedMsg{
+			Disks:      disks,
+			InstanceId: instanceId,
+		}
+	}
+}
+
 // --- DNS Commands ---
 
 // LoadDNSDomains creates a command to load DNS domains

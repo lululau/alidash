@@ -27,6 +27,7 @@ type ECSListKeyMap struct {
 	Enter          key.Binding
 	JSONDetail     key.Binding
 	SecurityGroups key.Binding
+	Disks          key.Binding
 }
 
 // DefaultECSListKeyMap returns default key bindings
@@ -43,6 +44,10 @@ func DefaultECSListKeyMap() ECSListKeyMap {
 		SecurityGroups: key.NewBinding(
 			key.WithKeys("g"),
 			key.WithHelp("g", "security groups"),
+		),
+		Disks: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "disks/storage"),
 		),
 	}
 }
@@ -177,6 +182,16 @@ func (m ECSListModel) Update(msg tea.Msg) (ECSListModel, tea.Cmd) {
 				return m, func() tea.Msg {
 					return types.NavigateMsg{
 						Page: types.PageInstanceSecurityGroups,
+						Data: inst.InstanceId,
+					}
+				}
+			}
+
+		case key.Matches(msg, m.keys.Disks):
+			if inst := m.SelectedInstance(); inst != nil {
+				return m, func() tea.Msg {
+					return types.NavigateMsg{
+						Page: types.PageECSDisks,
 						Data: inst.InstanceId,
 					}
 				}

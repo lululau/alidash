@@ -8,6 +8,7 @@ const (
 	PageECSList
 	PageECSDetail     // New formatted detail view
 	PageECSJSONDetail // JSON detail view (previously PageECSDetail)
+	PageECSDisks      // ECS Disk/Storage page
 	PageSecurityGroups
 	PageSecurityGroupRules
 	PageSecurityGroupInstances
@@ -46,6 +47,8 @@ func (p PageType) String() string {
 		return "ECS Detail"
 	case PageECSJSONDetail:
 		return "ECS JSON Detail"
+	case PageECSDisks:
+		return "ECS Disks"
 	case PageSecurityGroups:
 		return "Security Groups"
 	case PageSecurityGroupRules:
