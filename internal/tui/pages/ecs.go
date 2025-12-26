@@ -45,14 +45,14 @@ func DefaultECSListKeyMap() ECSListKeyMap {
 // NewECSListModel creates a new ECS list model
 func NewECSListModel() ECSListModel {
 	columns := []table.Column{
-		{Title: "Instance ID", Width: 20},
+		{Title: "Instance ID", Width: 26},
 		{Title: "Status", Width: 10},
-		{Title: "Zone", Width: 15},
+		{Title: "Zone", Width: 18},
 		{Title: "CPU/RAM", Width: 10},
-		{Title: "Private IP", Width: 15},
-		{Title: "Public IP", Width: 15},
-		{Title: "Name", Width: 25},
-		{Title: "Expired", Width: 20},
+		{Title: "Private IP", Width: 16},
+		{Title: "Public IP", Width: 16},
+		{Title: "Name", Width: 30},
+		{Title: "Expired", Width: 22},
 	}
 
 	return ECSListModel{
@@ -180,6 +180,18 @@ func (m ECSListModel) View() string {
 // Search searches in the list
 func (m ECSListModel) Search(query string) ECSListModel {
 	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m ECSListModel) NextSearchMatch() ECSListModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m ECSListModel) PrevSearchMatch() ECSListModel {
+	m.table = m.table.PrevSearchMatch()
 	return m
 }
 

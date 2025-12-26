@@ -125,6 +125,24 @@ func (m OSSBucketsModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m OSSBucketsModel) Search(query string) OSSBucketsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m OSSBucketsModel) NextSearchMatch() OSSBucketsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m OSSBucketsModel) PrevSearchMatch() OSSBucketsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // OSSObjectsModel represents the OSS objects list page with pagination
 type OSSObjectsModel struct {
 	table      components.TableModel
@@ -178,11 +196,11 @@ func DefaultOSSObjectsKeyMap() OSSObjectsKeyMap {
 // NewOSSObjectsModel creates a new OSS objects model
 func NewOSSObjectsModel(svc *service.OSSService, bucketName string) OSSObjectsModel {
 	columns := []table.Column{
-		{Title: "Object Key", Width: 50},
-		{Title: "Size", Width: 15},
-		{Title: "Last Modified", Width: 25},
-		{Title: "Storage Class", Width: 15},
-		{Title: "ETag", Width: 20},
+		{Title: "Object Key", Width: 80},
+		{Title: "Size", Width: 12},
+		{Title: "Last Modified", Width: 22},
+		{Title: "Storage Class", Width: 14},
+		{Title: "ETag", Width: 36},
 	}
 
 	return OSSObjectsModel{
@@ -311,6 +329,24 @@ func (m OSSObjectsModel) View() string {
 		Render(fmt.Sprintf(" %s | %s ", pageInfo, navHelp))
 
 	return m.table.View() + "\n" + paginationLine
+}
+
+// Search searches in the list
+func (m OSSObjectsModel) Search(query string) OSSObjectsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m OSSObjectsModel) NextSearchMatch() OSSObjectsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m OSSObjectsModel) PrevSearchMatch() OSSObjectsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 
 // Helper function to format file size

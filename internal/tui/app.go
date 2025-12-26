@@ -179,6 +179,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Global key handling
 		switch {
 		case key.Matches(msg, m.keys.Quit):
+			// Q (capital) always quits
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.Profile):
@@ -186,13 +187,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Back):
+			// q/esc goes back, but not on menu page (menu uses Q to quit)
 			if m.currentPage != PageMenu {
 				return m.navigateBack()
 			}
+			// On menu page, esc does nothing, q is handled by menu shortcuts
 
 		case key.Matches(msg, m.keys.Search):
-			m.search = m.search.Activate()
-			return m, m.search.Focus()
+			// Don't activate search on menu page
+			if m.currentPage != PageMenu {
+				m.search = m.search.Activate()
+				return m, m.search.Focus()
+			}
+
+		case key.Matches(msg, m.keys.SearchNext):
+			// n for next search match
+			if m.search.Query() != "" {
+				return m.handleSearchNext()
+			}
+
+		case key.Matches(msg, m.keys.SearchPrev):
+			// N for previous search match
+			if m.search.Query() != "" {
+				return m.handleSearchPrev()
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -217,6 +235,59 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ModalDismissedMsg:
 		m.modal = m.modal.Hide()
 
+	case components.ProfileSelectedMsg:
+		// Actual profile switching - called when user selects a profile from modal
+		if err := config.SwitchProfile(msg.Profile); err != nil {
+			m.modal = components.NewErrorModal(fmt.Sprintf("Failed to switch profile: %v", err))
+			return m, nil
+		}
+
+		// Reload configuration with new profile
+		cfg, err := config.LoadAliyunConfig()
+		if err != nil {
+			m.modal = components.NewErrorModal(fmt.Sprintf("Failed to reload config: %v", err))
+			return m, nil
+		}
+
+		// Recreate clients with new credentials
+		clientConfig := &client.Config{
+			AccessKeyID:     cfg.AccessKeyID,
+			AccessKeySecret: cfg.AccessKeySecret,
+			RegionID:        cfg.RegionID,
+			OssEndpoint:     cfg.OssEndpoint,
+		}
+
+		newClients, err := client.NewAliyunClients(clientConfig)
+		if err != nil {
+			m.modal = components.NewErrorModal(fmt.Sprintf("Failed to create clients: %v", err))
+			return m, nil
+		}
+
+		// Update clients and recreate services
+		m.clients = newClients
+		m.services = &Services{
+			ECS:      service.NewECSService(newClients.ECS),
+			DNS:      service.NewDNSService(newClients.DNS),
+			SLB:      service.NewSLBService(newClients.SLB),
+			RDS:      service.NewRDSService(newClients.RDS),
+			OSS:      service.NewOSSServiceWithCredentials(newClients.OSS, cfg.AccessKeyID, cfg.AccessKeySecret, cfg.OssEndpoint),
+			Redis:    service.NewRedisService(newClients.Redis),
+			RocketMQ: service.NewRocketMQService(newClients.RocketMQ),
+		}
+
+		// Update profile and mode line
+		m.profile = msg.Profile
+		m.modeLine = m.modeLine.SetProfile(msg.Profile)
+
+		// Clear cached data and return to menu
+		m = m.clearCachedData()
+		m.currentPage = PageMenu
+		m.previousPages = []PageType{}
+
+		// Show success message
+		m.modal = components.NewSuccessModal(fmt.Sprintf("Switched to profile: %s", msg.Profile))
+		return m, nil
+
 	case ProfileSwitchedMsg:
 		m.profile = msg.ProfileName
 		m.modeLine = m.modeLine.SetProfile(msg.ProfileName)
@@ -232,6 +303,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.navigateBack()
 
 	// Handle search messages
+	case components.SearchExecuteMsg:
+		m.search = m.search.Deactivate()
+		return m.handleSearchQuery(msg.Query)
+
+	case components.SearchCancelMsg:
+		m.search = m.search.Deactivate()
+		return m, nil
+
 	case SearchQueryMsg:
 		return m.handleSearchQuery(msg.Query)
 
@@ -317,6 +396,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ossObjectsPage = m.ossObjectsPage.SetData(msg.Result, msg.BucketName, msg.Page)
 		m.ossObjectsPage = m.ossObjectsPage.SetSize(m.width, m.height-1)
 
+	// Handle pagination messages from pages package
+	case pages.OSSObjectsLoadedMsg:
+		m.loading = false
+		m.ossObjectsPage = m.ossObjectsPage.SetData(msg.Result, msg.BucketName, msg.Page)
+		m.ossObjectsPage = m.ossObjectsPage.SetSize(m.width, m.height-1)
+
+	case pages.OSSErrorMsg:
+		m.loading = false
+		m.modal = components.NewErrorModal(msg.Err.Error())
+
 	case RDSInstancesLoadedMsg:
 		m.loading = false
 		m.rdsListPage = m.rdsListPage.SetData(msg.Instances)
@@ -357,13 +446,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.SetData(msg.Groups, msg.InstanceId)
 		m.rocketmqGroupsPage = m.rocketmqGroupsPage.SetSize(m.width, m.height-1)
 
+	// Handle component messages (from table and viewport)
+	case components.CopyDataMsg:
+		return m, CopyToClipboard(msg.Data)
+
+	case components.OpenEditorMsg:
+		return m, OpenInEditor(msg.Data)
+
+	case components.OpenPagerMsg:
+		return m, OpenInPager(msg.Data)
+
 	// Handle copy messages
 	case CopiedMsg:
 		m.modal = components.NewInfoModal("Copied to clipboard!")
 	}
 
 	// Update current page
-	cmd := m.updateCurrentPage(msg)
+	var cmd tea.Cmd
+	m, cmd = m.updateCurrentPage(msg)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
@@ -492,6 +592,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageECSDetail:
 		if inst, ok := data.(interface{}); ok {
 			m.ecsDetailPage = pages.NewDetailModel("ECS Detail", inst)
+			m.ecsDetailPage = m.ecsDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -534,6 +635,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageSLBDetail:
 		if lb, ok := data.(interface{}); ok {
 			m.slbDetailPage = pages.NewDetailModel("SLB Detail", lb)
+			m.slbDetailPage = m.slbDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -568,6 +670,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageOSSObjectDetail:
 		if obj, ok := data.(interface{}); ok {
 			m.ossDetailPage = pages.NewDetailModel("OSS Object Detail", obj)
+			m.ossDetailPage = m.ossDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -578,6 +681,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageRDSDetail:
 		if inst, ok := data.(interface{}); ok {
 			m.rdsDetailPage = pages.NewDetailModel("RDS Detail", inst)
+			m.rdsDetailPage = m.rdsDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -600,6 +704,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageRedisDetail:
 		if inst, ok := data.(interface{}); ok {
 			m.redisDetailPage = pages.NewDetailModel("Redis Detail", inst)
+			m.redisDetailPage = m.redisDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -616,6 +721,7 @@ func (m Model) navigateTo(page PageType, data interface{}) (Model, tea.Cmd) {
 	case PageRocketMQDetail:
 		if inst, ok := data.(interface{}); ok {
 			m.rocketmqDetailPage = pages.NewDetailModel("RocketMQ Detail", inst)
+			m.rocketmqDetailPage = m.rocketmqDetailPage.SetSize(m.width, m.height-1)
 			m.loading = false
 		}
 
@@ -657,121 +763,96 @@ func (m Model) navigateBack() (Model, tea.Cmd) {
 }
 
 // updateCurrentPage delegates update to the current page
-func (m Model) updateCurrentPage(msg tea.Msg) tea.Cmd {
+func (m Model) updateCurrentPage(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch m.currentPage {
 	case PageMenu:
-		var newModel pages.MenuModel
-		newModel, cmd = m.menuPage.Update(msg)
-		m.menuPage = newModel
+		m.menuPage, cmd = m.menuPage.Update(msg)
 
 	case PageECSList:
-		var newModel pages.ECSListModel
-		newModel, cmd = m.ecsListPage.Update(msg)
-		m.ecsListPage = newModel
+		m.ecsListPage, cmd = m.ecsListPage.Update(msg)
 
 	case PageECSDetail:
-		var newModel pages.DetailModel
-		newModel, cmd = m.ecsDetailPage.Update(msg)
-		m.ecsDetailPage = newModel
+		m.ecsDetailPage, cmd = m.ecsDetailPage.Update(msg)
 
 	case PageSecurityGroups:
-		var newModel pages.SecurityGroupsModel
-		newModel, cmd = m.sgListPage.Update(msg)
-		m.sgListPage = newModel
+		m.sgListPage, cmd = m.sgListPage.Update(msg)
 
 	case PageSecurityGroupRules:
-		var newModel pages.SecurityGroupRulesModel
-		newModel, cmd = m.sgRulesPage.Update(msg)
-		m.sgRulesPage = newModel
+		m.sgRulesPage, cmd = m.sgRulesPage.Update(msg)
+
+	case PageSecurityGroupInstances:
+		m.sgInstancesPage, cmd = m.sgInstancesPage.Update(msg)
+
+	case PageInstanceSecurityGroups:
+		m.instSGPage, cmd = m.instSGPage.Update(msg)
 
 	case PageDNSDomains:
-		var newModel pages.DNSDomainsModel
-		newModel, cmd = m.dnsDomainsPage.Update(msg)
-		m.dnsDomainsPage = newModel
+		m.dnsDomainsPage, cmd = m.dnsDomainsPage.Update(msg)
 
 	case PageDNSRecords:
-		var newModel pages.DNSRecordsModel
-		newModel, cmd = m.dnsRecordsPage.Update(msg)
-		m.dnsRecordsPage = newModel
+		m.dnsRecordsPage, cmd = m.dnsRecordsPage.Update(msg)
 
 	case PageSLBList:
-		var newModel pages.SLBListModel
-		newModel, cmd = m.slbListPage.Update(msg)
-		m.slbListPage = newModel
+		m.slbListPage, cmd = m.slbListPage.Update(msg)
+
+	case PageSLBDetail:
+		m.slbDetailPage, cmd = m.slbDetailPage.Update(msg)
 
 	case PageSLBListeners:
-		var newModel pages.SLBListenersModel
-		newModel, cmd = m.slbListenersPage.Update(msg)
-		m.slbListenersPage = newModel
+		m.slbListenersPage, cmd = m.slbListenersPage.Update(msg)
 
 	case PageSLBVServerGroups:
-		var newModel pages.SLBVServerGroupsModel
-		newModel, cmd = m.slbVServerPage.Update(msg)
-		m.slbVServerPage = newModel
+		m.slbVServerPage, cmd = m.slbVServerPage.Update(msg)
 
 	case PageSLBBackendServers:
-		var newModel pages.SLBBackendServersModel
-		newModel, cmd = m.slbBackendPage.Update(msg)
-		m.slbBackendPage = newModel
+		m.slbBackendPage, cmd = m.slbBackendPage.Update(msg)
 
 	case PageOSSBuckets:
-		var newModel pages.OSSBucketsModel
-		newModel, cmd = m.ossBucketsPage.Update(msg)
-		m.ossBucketsPage = newModel
+		m.ossBucketsPage, cmd = m.ossBucketsPage.Update(msg)
 
 	case PageOSSObjects:
-		var newModel pages.OSSObjectsModel
-		newModel, cmd = m.ossObjectsPage.Update(msg)
-		m.ossObjectsPage = newModel
+		m.ossObjectsPage, cmd = m.ossObjectsPage.Update(msg)
+
+	case PageOSSObjectDetail:
+		m.ossDetailPage, cmd = m.ossDetailPage.Update(msg)
 
 	case PageRDSList:
-		var newModel pages.RDSListModel
-		newModel, cmd = m.rdsListPage.Update(msg)
-		m.rdsListPage = newModel
+		m.rdsListPage, cmd = m.rdsListPage.Update(msg)
+
+	case PageRDSDetail:
+		m.rdsDetailPage, cmd = m.rdsDetailPage.Update(msg)
 
 	case PageRDSDatabases:
-		var newModel pages.RDSDatabasesModel
-		newModel, cmd = m.rdsDatabasesPage.Update(msg)
-		m.rdsDatabasesPage = newModel
+		m.rdsDatabasesPage, cmd = m.rdsDatabasesPage.Update(msg)
 
 	case PageRDSAccounts:
-		var newModel pages.RDSAccountsModel
-		newModel, cmd = m.rdsAccountsPage.Update(msg)
-		m.rdsAccountsPage = newModel
+		m.rdsAccountsPage, cmd = m.rdsAccountsPage.Update(msg)
 
 	case PageRedisList:
-		var newModel pages.RedisListModel
-		newModel, cmd = m.redisListPage.Update(msg)
-		m.redisListPage = newModel
+		m.redisListPage, cmd = m.redisListPage.Update(msg)
+
+	case PageRedisDetail:
+		m.redisDetailPage, cmd = m.redisDetailPage.Update(msg)
 
 	case PageRedisAccounts:
-		var newModel pages.RedisAccountsModel
-		newModel, cmd = m.redisAccountsPage.Update(msg)
-		m.redisAccountsPage = newModel
+		m.redisAccountsPage, cmd = m.redisAccountsPage.Update(msg)
 
 	case PageRocketMQList:
-		var newModel pages.RocketMQListModel
-		newModel, cmd = m.rocketmqListPage.Update(msg)
-		m.rocketmqListPage = newModel
+		m.rocketmqListPage, cmd = m.rocketmqListPage.Update(msg)
+
+	case PageRocketMQDetail:
+		m.rocketmqDetailPage, cmd = m.rocketmqDetailPage.Update(msg)
 
 	case PageRocketMQTopics:
-		var newModel pages.RocketMQTopicsModel
-		newModel, cmd = m.rocketmqTopicsPage.Update(msg)
-		m.rocketmqTopicsPage = newModel
+		m.rocketmqTopicsPage, cmd = m.rocketmqTopicsPage.Update(msg)
 
 	case PageRocketMQGroups:
-		var newModel pages.RocketMQGroupsModel
-		newModel, cmd = m.rocketmqGroupsPage.Update(msg)
-		m.rocketmqGroupsPage = newModel
-
-	// Detail pages
-	case PageSLBDetail, PageOSSObjectDetail, PageRDSDetail, PageRedisDetail, PageRocketMQDetail:
-		// Detail pages handle their own updates
+		m.rocketmqGroupsPage, cmd = m.rocketmqGroupsPage.Update(msg)
 	}
 
-	return cmd
+	return m, cmd
 }
 
 // updateCurrentPageSize updates the current page's size
@@ -781,9 +862,58 @@ func (m Model) updateCurrentPageSize(height int) Model {
 		m.menuPage = m.menuPage.SetSize(m.width, height)
 	case PageECSList:
 		m.ecsListPage = m.ecsListPage.SetSize(m.width, height)
+	case PageECSDetail:
+		m.ecsDetailPage = m.ecsDetailPage.SetSize(m.width, height)
 	case PageSecurityGroups:
 		m.sgListPage = m.sgListPage.SetSize(m.width, height)
-	// Add other pages as needed
+	case PageSecurityGroupRules:
+		m.sgRulesPage = m.sgRulesPage.SetSize(m.width, height)
+	case PageSecurityGroupInstances:
+		m.sgInstancesPage = m.sgInstancesPage.SetSize(m.width, height)
+	case PageInstanceSecurityGroups:
+		m.instSGPage = m.instSGPage.SetSize(m.width, height)
+	case PageDNSDomains:
+		m.dnsDomainsPage = m.dnsDomainsPage.SetSize(m.width, height)
+	case PageDNSRecords:
+		m.dnsRecordsPage = m.dnsRecordsPage.SetSize(m.width, height)
+	case PageSLBList:
+		m.slbListPage = m.slbListPage.SetSize(m.width, height)
+	case PageSLBDetail:
+		m.slbDetailPage = m.slbDetailPage.SetSize(m.width, height)
+	case PageSLBListeners:
+		m.slbListenersPage = m.slbListenersPage.SetSize(m.width, height)
+	case PageSLBVServerGroups:
+		m.slbVServerPage = m.slbVServerPage.SetSize(m.width, height)
+	case PageSLBBackendServers:
+		m.slbBackendPage = m.slbBackendPage.SetSize(m.width, height)
+	case PageOSSBuckets:
+		m.ossBucketsPage = m.ossBucketsPage.SetSize(m.width, height)
+	case PageOSSObjects:
+		m.ossObjectsPage = m.ossObjectsPage.SetSize(m.width, height)
+	case PageOSSObjectDetail:
+		m.ossDetailPage = m.ossDetailPage.SetSize(m.width, height)
+	case PageRDSList:
+		m.rdsListPage = m.rdsListPage.SetSize(m.width, height)
+	case PageRDSDetail:
+		m.rdsDetailPage = m.rdsDetailPage.SetSize(m.width, height)
+	case PageRDSDatabases:
+		m.rdsDatabasesPage = m.rdsDatabasesPage.SetSize(m.width, height)
+	case PageRDSAccounts:
+		m.rdsAccountsPage = m.rdsAccountsPage.SetSize(m.width, height)
+	case PageRedisList:
+		m.redisListPage = m.redisListPage.SetSize(m.width, height)
+	case PageRedisDetail:
+		m.redisDetailPage = m.redisDetailPage.SetSize(m.width, height)
+	case PageRedisAccounts:
+		m.redisAccountsPage = m.redisAccountsPage.SetSize(m.width, height)
+	case PageRocketMQList:
+		m.rocketmqListPage = m.rocketmqListPage.SetSize(m.width, height)
+	case PageRocketMQDetail:
+		m.rocketmqDetailPage = m.rocketmqDetailPage.SetSize(m.width, height)
+	case PageRocketMQTopics:
+		m.rocketmqTopicsPage = m.rocketmqTopicsPage.SetSize(m.width, height)
+	case PageRocketMQGroups:
+		m.rocketmqGroupsPage = m.rocketmqGroupsPage.SetSize(m.width, height)
 	}
 	return m
 }
@@ -803,17 +933,192 @@ func (m Model) clearCachedData() Model {
 
 // handleSearchQuery handles search query
 func (m Model) handleSearchQuery(query string) (Model, tea.Cmd) {
-	// Delegate to current page
+	if query == "" {
+		return m, nil
+	}
+
+	// Route search to the current page's table or viewport
+	switch m.currentPage {
+	case PageECSList:
+		m.ecsListPage = m.ecsListPage.Search(query)
+	case PageECSDetail:
+		m.ecsDetailPage = m.ecsDetailPage.Search(query)
+	case PageSecurityGroups:
+		m.sgListPage = m.sgListPage.Search(query)
+	case PageSecurityGroupRules:
+		m.sgRulesPage = m.sgRulesPage.Search(query)
+	case PageSecurityGroupInstances:
+		m.sgInstancesPage = m.sgInstancesPage.Search(query)
+	case PageInstanceSecurityGroups:
+		m.instSGPage = m.instSGPage.Search(query)
+	case PageDNSDomains:
+		m.dnsDomainsPage = m.dnsDomainsPage.Search(query)
+	case PageDNSRecords:
+		m.dnsRecordsPage = m.dnsRecordsPage.Search(query)
+	case PageSLBList:
+		m.slbListPage = m.slbListPage.Search(query)
+	case PageSLBDetail:
+		m.slbDetailPage = m.slbDetailPage.Search(query)
+	case PageSLBListeners:
+		m.slbListenersPage = m.slbListenersPage.Search(query)
+	case PageSLBVServerGroups:
+		m.slbVServerPage = m.slbVServerPage.Search(query)
+	case PageSLBBackendServers:
+		m.slbBackendPage = m.slbBackendPage.Search(query)
+	case PageOSSBuckets:
+		m.ossBucketsPage = m.ossBucketsPage.Search(query)
+	case PageOSSObjects:
+		m.ossObjectsPage = m.ossObjectsPage.Search(query)
+	case PageOSSObjectDetail:
+		m.ossDetailPage = m.ossDetailPage.Search(query)
+	case PageRDSList:
+		m.rdsListPage = m.rdsListPage.Search(query)
+	case PageRDSDetail:
+		m.rdsDetailPage = m.rdsDetailPage.Search(query)
+	case PageRDSDatabases:
+		m.rdsDatabasesPage = m.rdsDatabasesPage.Search(query)
+	case PageRDSAccounts:
+		m.rdsAccountsPage = m.rdsAccountsPage.Search(query)
+	case PageRedisList:
+		m.redisListPage = m.redisListPage.Search(query)
+	case PageRedisDetail:
+		m.redisDetailPage = m.redisDetailPage.Search(query)
+	case PageRedisAccounts:
+		m.redisAccountsPage = m.redisAccountsPage.Search(query)
+	case PageRocketMQList:
+		m.rocketmqListPage = m.rocketmqListPage.Search(query)
+	case PageRocketMQDetail:
+		m.rocketmqDetailPage = m.rocketmqDetailPage.Search(query)
+	case PageRocketMQTopics:
+		m.rocketmqTopicsPage = m.rocketmqTopicsPage.Search(query)
+	case PageRocketMQGroups:
+		m.rocketmqGroupsPage = m.rocketmqGroupsPage.Search(query)
+	}
+
 	return m, nil
 }
 
 // handleSearchNext handles next search result
 func (m Model) handleSearchNext() (Model, tea.Cmd) {
+	switch m.currentPage {
+	case PageECSList:
+		m.ecsListPage = m.ecsListPage.NextSearchMatch()
+	case PageECSDetail:
+		m.ecsDetailPage = m.ecsDetailPage.NextSearchMatch()
+	case PageSecurityGroups:
+		m.sgListPage = m.sgListPage.NextSearchMatch()
+	case PageSecurityGroupRules:
+		m.sgRulesPage = m.sgRulesPage.NextSearchMatch()
+	case PageSecurityGroupInstances:
+		m.sgInstancesPage = m.sgInstancesPage.NextSearchMatch()
+	case PageInstanceSecurityGroups:
+		m.instSGPage = m.instSGPage.NextSearchMatch()
+	case PageDNSDomains:
+		m.dnsDomainsPage = m.dnsDomainsPage.NextSearchMatch()
+	case PageDNSRecords:
+		m.dnsRecordsPage = m.dnsRecordsPage.NextSearchMatch()
+	case PageSLBList:
+		m.slbListPage = m.slbListPage.NextSearchMatch()
+	case PageSLBDetail:
+		m.slbDetailPage = m.slbDetailPage.NextSearchMatch()
+	case PageSLBListeners:
+		m.slbListenersPage = m.slbListenersPage.NextSearchMatch()
+	case PageSLBVServerGroups:
+		m.slbVServerPage = m.slbVServerPage.NextSearchMatch()
+	case PageSLBBackendServers:
+		m.slbBackendPage = m.slbBackendPage.NextSearchMatch()
+	case PageOSSBuckets:
+		m.ossBucketsPage = m.ossBucketsPage.NextSearchMatch()
+	case PageOSSObjects:
+		m.ossObjectsPage = m.ossObjectsPage.NextSearchMatch()
+	case PageOSSObjectDetail:
+		m.ossDetailPage = m.ossDetailPage.NextSearchMatch()
+	case PageRDSList:
+		m.rdsListPage = m.rdsListPage.NextSearchMatch()
+	case PageRDSDetail:
+		m.rdsDetailPage = m.rdsDetailPage.NextSearchMatch()
+	case PageRDSDatabases:
+		m.rdsDatabasesPage = m.rdsDatabasesPage.NextSearchMatch()
+	case PageRDSAccounts:
+		m.rdsAccountsPage = m.rdsAccountsPage.NextSearchMatch()
+	case PageRedisList:
+		m.redisListPage = m.redisListPage.NextSearchMatch()
+	case PageRedisDetail:
+		m.redisDetailPage = m.redisDetailPage.NextSearchMatch()
+	case PageRedisAccounts:
+		m.redisAccountsPage = m.redisAccountsPage.NextSearchMatch()
+	case PageRocketMQList:
+		m.rocketmqListPage = m.rocketmqListPage.NextSearchMatch()
+	case PageRocketMQDetail:
+		m.rocketmqDetailPage = m.rocketmqDetailPage.NextSearchMatch()
+	case PageRocketMQTopics:
+		m.rocketmqTopicsPage = m.rocketmqTopicsPage.NextSearchMatch()
+	case PageRocketMQGroups:
+		m.rocketmqGroupsPage = m.rocketmqGroupsPage.NextSearchMatch()
+	}
+
 	return m, nil
 }
 
 // handleSearchPrev handles previous search result
 func (m Model) handleSearchPrev() (Model, tea.Cmd) {
+	switch m.currentPage {
+	case PageECSList:
+		m.ecsListPage = m.ecsListPage.PrevSearchMatch()
+	case PageECSDetail:
+		m.ecsDetailPage = m.ecsDetailPage.PrevSearchMatch()
+	case PageSecurityGroups:
+		m.sgListPage = m.sgListPage.PrevSearchMatch()
+	case PageSecurityGroupRules:
+		m.sgRulesPage = m.sgRulesPage.PrevSearchMatch()
+	case PageSecurityGroupInstances:
+		m.sgInstancesPage = m.sgInstancesPage.PrevSearchMatch()
+	case PageInstanceSecurityGroups:
+		m.instSGPage = m.instSGPage.PrevSearchMatch()
+	case PageDNSDomains:
+		m.dnsDomainsPage = m.dnsDomainsPage.PrevSearchMatch()
+	case PageDNSRecords:
+		m.dnsRecordsPage = m.dnsRecordsPage.PrevSearchMatch()
+	case PageSLBList:
+		m.slbListPage = m.slbListPage.PrevSearchMatch()
+	case PageSLBDetail:
+		m.slbDetailPage = m.slbDetailPage.PrevSearchMatch()
+	case PageSLBListeners:
+		m.slbListenersPage = m.slbListenersPage.PrevSearchMatch()
+	case PageSLBVServerGroups:
+		m.slbVServerPage = m.slbVServerPage.PrevSearchMatch()
+	case PageSLBBackendServers:
+		m.slbBackendPage = m.slbBackendPage.PrevSearchMatch()
+	case PageOSSBuckets:
+		m.ossBucketsPage = m.ossBucketsPage.PrevSearchMatch()
+	case PageOSSObjects:
+		m.ossObjectsPage = m.ossObjectsPage.PrevSearchMatch()
+	case PageOSSObjectDetail:
+		m.ossDetailPage = m.ossDetailPage.PrevSearchMatch()
+	case PageRDSList:
+		m.rdsListPage = m.rdsListPage.PrevSearchMatch()
+	case PageRDSDetail:
+		m.rdsDetailPage = m.rdsDetailPage.PrevSearchMatch()
+	case PageRDSDatabases:
+		m.rdsDatabasesPage = m.rdsDatabasesPage.PrevSearchMatch()
+	case PageRDSAccounts:
+		m.rdsAccountsPage = m.rdsAccountsPage.PrevSearchMatch()
+	case PageRedisList:
+		m.redisListPage = m.redisListPage.PrevSearchMatch()
+	case PageRedisDetail:
+		m.redisDetailPage = m.redisDetailPage.PrevSearchMatch()
+	case PageRedisAccounts:
+		m.redisAccountsPage = m.redisAccountsPage.PrevSearchMatch()
+	case PageRocketMQList:
+		m.rocketmqListPage = m.rocketmqListPage.PrevSearchMatch()
+	case PageRocketMQDetail:
+		m.rocketmqDetailPage = m.rocketmqDetailPage.PrevSearchMatch()
+	case PageRocketMQTopics:
+		m.rocketmqTopicsPage = m.rocketmqTopicsPage.PrevSearchMatch()
+	case PageRocketMQGroups:
+		m.rocketmqGroupsPage = m.rocketmqGroupsPage.PrevSearchMatch()
+	}
+
 	return m, nil
 }
 

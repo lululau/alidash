@@ -132,9 +132,7 @@ func DefaultViewportStyles() ViewportStyles {
 // NewViewportModel creates a new viewport model
 func NewViewportModel(title string, data interface{}) ViewportModel {
 	vp := viewport.New(80, 20)
-	vp.Style = lipgloss.NewStyle().
-		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#374151"))
+	// No border style here - we add it in View() for full-width control
 
 	m := ViewportModel{
 		viewport: vp,
@@ -261,12 +259,17 @@ func (m ViewportModel) SetTitle(title string) ViewportModel {
 func (m ViewportModel) SetSize(width, height int) ViewportModel {
 	m.width = width
 	m.height = height
-	// Account for title and borders
-	vpHeight := height - 4
+	// Account for: title (1) + help (1) + border (2) + search info (2)
+	vpHeight := height - 6
 	if vpHeight < 1 {
 		vpHeight = 1
 	}
-	m.viewport.Width = width - 4
+	// Account for border width (2) and padding (2)
+	vpWidth := width - 6
+	if vpWidth < 10 {
+		vpWidth = 10
+	}
+	m.viewport.Width = vpWidth
 	m.viewport.Height = vpHeight
 	return m
 }
@@ -347,8 +350,12 @@ func (m ViewportModel) View() string {
 	b.WriteString(help)
 	b.WriteString("\n")
 
-	// Viewport
-	b.WriteString(m.viewport.View())
+	// Viewport with border that fills the width
+	viewportContent := m.viewport.View()
+	bordered := m.styles.Border.
+		Width(m.width - 2).
+		Render(viewportContent)
+	b.WriteString(bordered)
 
 	// Search info
 	if m.searchQuery != "" {

@@ -49,11 +49,11 @@ func DefaultRocketMQListKeyMap() RocketMQListKeyMap {
 // NewRocketMQListModel creates a new RocketMQ list model
 func NewRocketMQListModel() RocketMQListModel {
 	columns := []table.Column{
-		{Title: "Instance ID", Width: 30},
-		{Title: "Name", Width: 30},
+		{Title: "Instance ID", Width: 40},
+		{Title: "Name", Width: 35},
 		{Title: "Type", Width: 15},
 		{Title: "Status", Width: 12},
-		{Title: "Region", Width: 15},
+		{Title: "Region", Width: 18},
 	}
 
 	return RocketMQListModel{
@@ -175,6 +175,24 @@ func (m RocketMQListModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m RocketMQListModel) Search(query string) RocketMQListModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RocketMQListModel) NextSearchMatch() RocketMQListModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RocketMQListModel) PrevSearchMatch() RocketMQListModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // RocketMQTopicsModel represents the RocketMQ topics page
 type RocketMQTopicsModel struct {
 	table      components.TableModel
@@ -266,6 +284,24 @@ func (m RocketMQTopicsModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m RocketMQTopicsModel) Search(query string) RocketMQTopicsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RocketMQTopicsModel) NextSearchMatch() RocketMQTopicsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RocketMQTopicsModel) PrevSearchMatch() RocketMQTopicsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // RocketMQGroupsModel represents the RocketMQ groups page
 type RocketMQGroupsModel struct {
 	table      components.TableModel
@@ -336,5 +372,23 @@ func (m RocketMQGroupsModel) Update(msg tea.Msg) (RocketMQGroupsModel, tea.Cmd) 
 // View implements tea.Model
 func (m RocketMQGroupsModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m RocketMQGroupsModel) Search(query string) RocketMQGroupsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RocketMQGroupsModel) NextSearchMatch() RocketMQGroupsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RocketMQGroupsModel) PrevSearchMatch() RocketMQGroupsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 

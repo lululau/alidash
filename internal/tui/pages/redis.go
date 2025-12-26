@@ -147,6 +147,24 @@ func (m RedisListModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m RedisListModel) Search(query string) RedisListModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RedisListModel) NextSearchMatch() RedisListModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RedisListModel) PrevSearchMatch() RedisListModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // RedisAccountsModel represents the Redis accounts page
 type RedisAccountsModel struct {
 	table      components.TableModel
@@ -219,5 +237,23 @@ func (m RedisAccountsModel) Update(msg tea.Msg) (RedisAccountsModel, tea.Cmd) {
 // View implements tea.Model
 func (m RedisAccountsModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m RedisAccountsModel) Search(query string) RedisAccountsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RedisAccountsModel) NextSearchMatch() RedisAccountsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RedisAccountsModel) PrevSearchMatch() RedisAccountsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 

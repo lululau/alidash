@@ -141,22 +141,33 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 		items[i] = profileItem{name: p, display: displayName}
 	}
 
-	// Create list
+	// Create compact delegate with minimal spacing
 	delegate := list.NewDefaultDelegate()
+	delegate.SetHeight(1)                  // Single line items
+	delegate.SetSpacing(0)                 // No spacing between items
+	delegate.ShowDescription = false       // Don't show description
 	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("#F59E0B")).
-		Bold(true)
+		Bold(true).
+		Background(lipgloss.Color("#374151"))
 	delegate.Styles.NormalTitle = delegate.Styles.NormalTitle.
 		Foreground(lipgloss.Color("#E5E7EB"))
 
-	l := list.New(items, delegate, 50, 15)
-	l.Title = "Select Profile"
+	// Calculate appropriate height based on number of profiles
+	listHeight := min(len(profiles)+4, 15)
+
+	l := list.New(items, delegate, 50, listHeight)
+	l.Title = "Select Profile (/ to filter)"
 	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
+	l.SetFilteringEnabled(true)            // Enable filtering for search
 	l.SetShowHelp(false)
 	l.Styles.Title = lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#7C3AED"))
+	l.Styles.FilterPrompt = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
+	l.Styles.FilterCursor = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F59E0B"))
 
 	// Select current profile
 	l.Select(selectedIdx)
@@ -171,7 +182,7 @@ func NewProfileSelectionModal(profiles []string, currentProfile string) ModalMod
 		selectedIndex:  selectedIdx,
 		styles:         DefaultModalStyles(),
 		width:          50,
-		height:         min(len(profiles)+6, 20),
+		height:         listHeight + 4,
 	}
 }
 
@@ -219,6 +230,13 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch m.modalType {
 		case ModalTypeProfileSelect:
+			// If list is filtering, let it handle all key events
+			if m.profileList.FilterState() == list.Filtering {
+				var cmd tea.Cmd
+				m.profileList, cmd = m.profileList.Update(msg)
+				return m, cmd
+			}
+
 			switch {
 			case key.Matches(msg, key.NewBinding(key.WithKeys("enter"))):
 				// Select profile
@@ -229,22 +247,25 @@ func (m ModalModel) Update(msg tea.Msg) (ModalModel, tea.Cmd) {
 					}
 				}
 
-			case key.Matches(msg, key.NewBinding(key.WithKeys("esc", "q"))):
+			case key.Matches(msg, key.NewBinding(key.WithKeys("esc"))):
+				// If filtering, let the list handle esc to cancel filter
+				// Otherwise dismiss modal
 				m.Visible = false
 				return m, func() tea.Msg {
 					return ModalDismissedMsg{}
 				}
 
-			case key.Matches(msg, key.NewBinding(key.WithKeys("j", "down"))):
-				var cmd tea.Cmd
-				m.profileList, cmd = m.profileList.Update(msg)
-				return m, cmd
-
-			case key.Matches(msg, key.NewBinding(key.WithKeys("k", "up"))):
-				var cmd tea.Cmd
-				m.profileList, cmd = m.profileList.Update(msg)
-				return m, cmd
+			case key.Matches(msg, key.NewBinding(key.WithKeys("q"))):
+				m.Visible = false
+				return m, func() tea.Msg {
+					return ModalDismissedMsg{}
+				}
 			}
+
+			// Forward all other keys to list (for j/k navigation and / filtering)
+			var cmd tea.Cmd
+			m.profileList, cmd = m.profileList.Update(msg)
+			return m, cmd
 
 		default:
 			// Info/Error/Success modals - dismiss on any key

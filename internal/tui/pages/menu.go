@@ -31,8 +31,6 @@ type MenuModel struct {
 
 // MenuKeyMap defines key bindings for the menu
 type MenuKeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
 	Enter    key.Binding
 	ECS      key.Binding
 	SG       key.Binding
@@ -48,14 +46,6 @@ type MenuKeyMap struct {
 // DefaultMenuKeyMap returns default menu key bindings
 func DefaultMenuKeyMap() MenuKeyMap {
 	return MenuKeyMap{
-		Up: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "up"),
-		),
-		Down: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "down"),
-		),
 		Enter: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "select"),
@@ -102,14 +92,14 @@ func DefaultMenuKeyMap() MenuKeyMap {
 // NewMenuModel creates a new menu model
 func NewMenuModel() MenuModel {
 	items := []list.Item{
-		MenuItem{title: "ECS Instances", description: "View ECS instances", shortcut: 's', page: types.PageECSList},
-		MenuItem{title: "Security Groups", description: "View ECS security groups", shortcut: 'g', page: types.PageSecurityGroups},
-		MenuItem{title: "DNS Management", description: "View AliDNS domains and records", shortcut: 'd', page: types.PageDNSDomains},
-		MenuItem{title: "SLB Instances", description: "View SLB instances", shortcut: 'b', page: types.PageSLBList},
-		MenuItem{title: "OSS Management", description: "Browse OSS buckets and objects", shortcut: 'o', page: types.PageOSSBuckets},
-		MenuItem{title: "RDS Instances", description: "View RDS instances", shortcut: 'r', page: types.PageRDSList},
-		MenuItem{title: "Redis Instances", description: "View Redis instances", shortcut: 'i', page: types.PageRedisList},
-		MenuItem{title: "RocketMQ Instances", description: "View RocketMQ instances", shortcut: 'm', page: types.PageRocketMQList},
+		MenuItem{title: "(s) ECS Instances", description: "View ECS instances", shortcut: 's', page: types.PageECSList},
+		MenuItem{title: "(g) Security Groups", description: "View ECS security groups", shortcut: 'g', page: types.PageSecurityGroups},
+		MenuItem{title: "(d) DNS Management", description: "View AliDNS domains and records", shortcut: 'd', page: types.PageDNSDomains},
+		MenuItem{title: "(b) SLB Instances", description: "View SLB instances", shortcut: 'b', page: types.PageSLBList},
+		MenuItem{title: "(o) OSS Management", description: "Browse OSS buckets and objects", shortcut: 'o', page: types.PageOSSBuckets},
+		MenuItem{title: "(r) RDS Instances", description: "View RDS instances", shortcut: 'r', page: types.PageRDSList},
+		MenuItem{title: "(i) Redis Instances", description: "View Redis instances", shortcut: 'i', page: types.PageRedisList},
+		MenuItem{title: "(m) RocketMQ Instances", description: "View RocketMQ instances", shortcut: 'm', page: types.PageRocketMQList},
 	}
 
 	// Create delegate
@@ -126,7 +116,7 @@ func NewMenuModel() MenuModel {
 		Foreground(lipgloss.Color("#6B7280"))
 
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Aliyun TUI Viewer"
+	l.Title = "Aliyun TUI Dashboard"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
@@ -221,4 +211,3 @@ func (m MenuModel) Update(msg tea.Msg) (MenuModel, tea.Cmd) {
 func (m MenuModel) View() string {
 	return m.list.View()
 }
-

@@ -151,6 +151,24 @@ func (m SecurityGroupsModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m SecurityGroupsModel) Search(query string) SecurityGroupsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SecurityGroupsModel) NextSearchMatch() SecurityGroupsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SecurityGroupsModel) PrevSearchMatch() SecurityGroupsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // SecurityGroupRulesModel represents the security group rules page
 type SecurityGroupRulesModel struct {
 	table           components.TableModel
@@ -244,5 +262,23 @@ func (m SecurityGroupRulesModel) Update(msg tea.Msg) (SecurityGroupRulesModel, t
 // View implements tea.Model
 func (m SecurityGroupRulesModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m SecurityGroupRulesModel) Search(query string) SecurityGroupRulesModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SecurityGroupRulesModel) NextSearchMatch() SecurityGroupRulesModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SecurityGroupRulesModel) PrevSearchMatch() SecurityGroupRulesModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 

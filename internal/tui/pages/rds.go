@@ -157,6 +157,24 @@ func (m RDSListModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m RDSListModel) Search(query string) RDSListModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RDSListModel) NextSearchMatch() RDSListModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RDSListModel) PrevSearchMatch() RDSListModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // RDSDatabasesModel represents the RDS databases page
 type RDSDatabasesModel struct {
 	table      components.TableModel
@@ -243,6 +261,24 @@ func (m RDSDatabasesModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m RDSDatabasesModel) Search(query string) RDSDatabasesModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RDSDatabasesModel) NextSearchMatch() RDSDatabasesModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RDSDatabasesModel) PrevSearchMatch() RDSDatabasesModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // RDSAccountsModel represents the RDS accounts page
 type RDSAccountsModel struct {
 	table      components.TableModel
@@ -327,5 +363,23 @@ func (m RDSAccountsModel) Update(msg tea.Msg) (RDSAccountsModel, tea.Cmd) {
 // View implements tea.Model
 func (m RDSAccountsModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m RDSAccountsModel) Search(query string) RDSAccountsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m RDSAccountsModel) NextSearchMatch() RDSAccountsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m RDSAccountsModel) PrevSearchMatch() RDSAccountsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 

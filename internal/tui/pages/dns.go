@@ -121,6 +121,24 @@ func (m DNSDomainsModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m DNSDomainsModel) Search(query string) DNSDomainsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m DNSDomainsModel) NextSearchMatch() DNSDomainsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m DNSDomainsModel) PrevSearchMatch() DNSDomainsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // DNSRecordsModel represents the DNS records list page
 type DNSRecordsModel struct {
 	table      components.TableModel
@@ -195,5 +213,23 @@ func (m DNSRecordsModel) Update(msg tea.Msg) (DNSRecordsModel, tea.Cmd) {
 // View implements tea.Model
 func (m DNSRecordsModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m DNSRecordsModel) Search(query string) DNSRecordsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m DNSRecordsModel) NextSearchMatch() DNSRecordsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m DNSRecordsModel) PrevSearchMatch() DNSRecordsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 

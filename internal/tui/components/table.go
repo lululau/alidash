@@ -23,7 +23,12 @@ type TableModel struct {
 	searchQuery string
 	searchIndex int
 	searchCount int
+	matchRows   []int // Row indices that match search
 	keys        TableKeyMap
+
+	// Cursor and scroll for custom rendering
+	cursor     int
+	scrollOffset int
 
 	// Yank tracking
 	yankLastTime time.Time
@@ -88,11 +93,12 @@ func DefaultTableKeyMap() TableKeyMap {
 
 // TableStyles defines styles for the table
 type TableStyles struct {
-	Header   lipgloss.Style
-	Cell     lipgloss.Style
-	Selected lipgloss.Style
-	Border   lipgloss.Style
-	Title    lipgloss.Style
+	Header      lipgloss.Style
+	Cell        lipgloss.Style
+	Selected    lipgloss.Style
+	Border      lipgloss.Style
+	Title       lipgloss.Style
+	SearchMatch lipgloss.Style
 }
 
 // DefaultTableStyles returns default table styles
@@ -101,22 +107,24 @@ func DefaultTableStyles() TableStyles {
 		Header: lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#F59E0B")).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderBottom(true).
-			BorderForeground(lipgloss.Color("#374151")),
+			Padding(0, 1),
 		Cell: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#E5E7EB")).
 			Padding(0, 1),
 		Selected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E5E7EB")).
-			Background(lipgloss.Color("#374151")).
-			Bold(true),
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#7C3AED")).
+			Bold(true).
+			Padding(0, 1),
 		Border: lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#374151")),
 		Title: lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#7C3AED")),
+		SearchMatch: lipgloss.NewStyle().
+			Background(lipgloss.Color("#CA8A04")).
+			Foreground(lipgloss.Color("#000000")),
 	}
 }
 
@@ -128,7 +136,7 @@ func NewTableModel(columns []table.Column, title string) TableModel {
 		table.WithHeight(10),
 	)
 
-	// Set table styles
+	// Set table styles - ensure Selected style highlights entire row
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
@@ -136,14 +144,16 @@ func NewTableModel(columns []table.Column, title string) TableModel {
 		BorderBottom(true).
 		Bold(true).
 		Foreground(lipgloss.Color("#F59E0B"))
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("#E5E7EB")).
-		Background(lipgloss.Color("#374151")).
+	// Selected style for the entire row - background color will extend to cell width
+	s.Selected = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(lipgloss.Color("#7C3AED")).
 		Bold(true)
 	s.Cell = s.Cell.
 		Foreground(lipgloss.Color("#E5E7EB"))
 
 	t.SetStyles(s)
+	t.Focus() // Ensure table starts focused
 
 	return TableModel{
 		table:   t,
@@ -158,7 +168,13 @@ func NewTableModel(columns []table.Column, title string) TableModel {
 // SetRows sets the table rows
 func (m TableModel) SetRows(rows []table.Row) TableModel {
 	m.rows = rows
-	m.table.SetRows(rows)
+	m.cursor = 0
+	m.scrollOffset = 0
+	// Clear search when data changes
+	m.searchQuery = ""
+	m.searchIndex = -1
+	m.searchCount = 0
+	m.matchRows = nil
 	return m
 }
 
@@ -204,14 +220,13 @@ func (m TableModel) SetColumns(columns []table.Column) TableModel {
 
 // SelectedRow returns the currently selected row index
 func (m TableModel) SelectedRow() int {
-	return m.table.Cursor()
+	return m.cursor
 }
 
 // SelectedRowData returns the data for the selected row
 func (m TableModel) SelectedRowData() interface{} {
-	idx := m.table.Cursor()
-	if idx >= 0 && idx < len(m.rowData) {
-		return m.rowData[idx]
+	if m.cursor >= 0 && m.cursor < len(m.rowData) {
+		return m.rowData[m.cursor]
 	}
 	return nil
 }
@@ -228,8 +243,6 @@ func (m TableModel) Init() tea.Cmd {
 
 // Update implements tea.Model
 func (m TableModel) Update(msg tea.Msg) (TableModel, tea.Cmd) {
-	var cmd tea.Cmd
-
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
@@ -258,16 +271,84 @@ func (m TableModel) Update(msg tea.Msg) (TableModel, tea.Cmd) {
 			// Return selection message
 			return m, func() tea.Msg {
 				return TableSelectMsg{
-					Index: m.table.Cursor(),
+					Index: m.cursor,
 					Data:  m.SelectedRowData(),
 				}
 			}
+
+		case key.Matches(msg, m.keys.Up):
+			m.moveCursor(-1)
+			return m, nil
+
+		case key.Matches(msg, m.keys.Down):
+			m.moveCursor(1)
+			return m, nil
+
+		case key.Matches(msg, m.keys.PageUp):
+			m.moveCursor(-m.visibleRows())
+			return m, nil
+
+		case key.Matches(msg, m.keys.PageDown):
+			m.moveCursor(m.visibleRows())
+			return m, nil
+
+		case key.Matches(msg, m.keys.Home):
+			m.cursor = 0
+			m.scrollOffset = 0
+			return m, nil
+
+		case key.Matches(msg, m.keys.End):
+			if len(m.rows) > 0 {
+				m.cursor = len(m.rows) - 1
+				m.ensureCursorVisible()
+			}
+			return m, nil
 		}
 	}
 
-	// Delegate to underlying table
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+	return m, nil
+}
+
+// moveCursor moves the cursor by delta and ensures it stays within bounds
+func (m *TableModel) moveCursor(delta int) {
+	if len(m.rows) == 0 {
+		return
+	}
+
+	m.cursor += delta
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.rows) {
+		m.cursor = len(m.rows) - 1
+	}
+
+	m.ensureCursorVisible()
+}
+
+// ensureCursorVisible adjusts scroll offset to keep cursor in view
+func (m *TableModel) ensureCursorVisible() {
+	visible := m.visibleRows()
+	if visible <= 0 {
+		return
+	}
+
+	if m.cursor < m.scrollOffset {
+		m.scrollOffset = m.cursor
+	}
+	if m.cursor >= m.scrollOffset+visible {
+		m.scrollOffset = m.cursor - visible + 1
+	}
+}
+
+// visibleRows returns the number of visible data rows
+func (m TableModel) visibleRows() int {
+	// Account for header row and borders
+	rows := m.height - 6
+	if rows < 1 {
+		rows = 1
+	}
+	return rows
 }
 
 // View implements tea.Model
@@ -281,13 +362,13 @@ func (m TableModel) View() string {
 		b.WriteString("\n")
 	}
 
-	// Table
-	tableView := m.table.View()
+	// Render custom table
+	tableContent := m.renderTable()
 
 	// Add border
 	bordered := m.styles.Border.
 		Width(m.width - 2).
-		Render(tableView)
+		Render(tableContent)
 
 	b.WriteString(bordered)
 
@@ -303,33 +384,168 @@ func (m TableModel) View() string {
 	return b.String()
 }
 
+// renderTable renders the table with custom highlighting
+func (m TableModel) renderTable() string {
+	var b strings.Builder
+
+	// Render header
+	headerCells := make([]string, len(m.columns))
+	for i, col := range m.columns {
+		cell := truncateString(col.Title, col.Width)
+		cell = padString(cell, col.Width)
+		headerCells[i] = m.styles.Header.Render(cell)
+	}
+	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, headerCells...))
+	b.WriteString("\n")
+
+	// Header separator
+	separatorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#374151"))
+	totalWidth := 0
+	for _, col := range m.columns {
+		totalWidth += col.Width + 2 // +2 for padding
+	}
+	b.WriteString(separatorStyle.Render(strings.Repeat("─", totalWidth)))
+	b.WriteString("\n")
+
+	// Render visible rows
+	visible := m.visibleRows()
+	endIdx := m.scrollOffset + visible
+	if endIdx > len(m.rows) {
+		endIdx = len(m.rows)
+	}
+
+	for rowIdx := m.scrollOffset; rowIdx < endIdx; rowIdx++ {
+		row := m.rows[rowIdx]
+		isSelected := rowIdx == m.cursor
+
+		rowCells := make([]string, len(m.columns))
+		for colIdx, col := range m.columns {
+			cellContent := ""
+			if colIdx < len(row) {
+				cellContent = row[colIdx]
+			}
+
+			// Truncate and pad cell content
+			displayContent := truncateString(cellContent, col.Width)
+			displayContent = padString(displayContent, col.Width)
+
+			// Apply search highlighting to the content
+			if m.searchQuery != "" {
+				displayContent = m.highlightSearchMatch(displayContent)
+			}
+
+			// Apply row style
+			if isSelected {
+				// For selected row, apply selected style
+				rowCells[colIdx] = m.styles.Selected.Render(displayContent)
+			} else {
+				rowCells[colIdx] = m.styles.Cell.Render(displayContent)
+			}
+		}
+
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, rowCells...))
+		if rowIdx < endIdx-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	// Fill empty rows if needed
+	for i := endIdx - m.scrollOffset; i < visible; i++ {
+		b.WriteString("\n")
+		emptyCells := make([]string, len(m.columns))
+		for colIdx, col := range m.columns {
+			emptyCells[colIdx] = m.styles.Cell.Render(strings.Repeat(" ", col.Width))
+		}
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, emptyCells...))
+	}
+
+	return b.String()
+}
+
+// highlightSearchMatch highlights search matches in a string
+func (m TableModel) highlightSearchMatch(s string) string {
+	if m.searchQuery == "" {
+		return s
+	}
+
+	lowerS := strings.ToLower(s)
+	lowerQuery := strings.ToLower(m.searchQuery)
+
+	var result strings.Builder
+	lastIdx := 0
+
+	for {
+		idx := strings.Index(lowerS[lastIdx:], lowerQuery)
+		if idx == -1 {
+			break
+		}
+
+		actualIdx := lastIdx + idx
+
+		// Add text before match
+		result.WriteString(s[lastIdx:actualIdx])
+
+		// Add highlighted match (preserving original case)
+		match := s[actualIdx : actualIdx+len(m.searchQuery)]
+		result.WriteString(m.styles.SearchMatch.Render(match))
+
+		lastIdx = actualIdx + len(m.searchQuery)
+	}
+
+	// Add remaining text
+	result.WriteString(s[lastIdx:])
+
+	return result.String()
+}
+
+// truncateString truncates a string to fit within width
+func truncateString(s string, width int) string {
+	if len(s) <= width {
+		return s
+	}
+	if width <= 3 {
+		return s[:width]
+	}
+	return s[:width-3] + "..."
+}
+
+// padString pads a string to the specified width
+func padString(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-len(s))
+}
+
 // Search searches for a query in the table
 func (m TableModel) Search(query string) TableModel {
 	if query == "" {
 		m.searchQuery = ""
 		m.searchIndex = -1
 		m.searchCount = 0
+		m.matchRows = nil
 		return m
 	}
 
 	m.searchQuery = query
-	query = strings.ToLower(query)
+	lowerQuery := strings.ToLower(query)
 
 	// Find matching rows
-	var matches []int
+	m.matchRows = nil
 	for i, row := range m.rows {
 		for _, cell := range row {
-			if strings.Contains(strings.ToLower(cell), query) {
-				matches = append(matches, i)
+			if strings.Contains(strings.ToLower(cell), lowerQuery) {
+				m.matchRows = append(m.matchRows, i)
 				break
 			}
 		}
 	}
 
-	m.searchCount = len(matches)
+	m.searchCount = len(m.matchRows)
 	if m.searchCount > 0 {
 		m.searchIndex = 0
-		m.table.SetCursor(matches[0])
+		m.cursor = m.matchRows[0]
+		m.ensureCursorVisible()
 	} else {
 		m.searchIndex = -1
 	}
@@ -343,30 +559,20 @@ func (m TableModel) NextSearchMatch() TableModel {
 		return m
 	}
 
-	query := strings.ToLower(m.searchQuery)
-	currentIdx := m.table.Cursor()
-
-	// Find next match after current position
-	for i := currentIdx + 1; i < len(m.rows); i++ {
-		for _, cell := range m.rows[i] {
-			if strings.Contains(strings.ToLower(cell), query) {
-				m.table.SetCursor(i)
-				m.searchIndex = (m.searchIndex + 1) % m.searchCount
-				return m
-			}
+	// Find current position in matchRows
+	currentMatchIdx := -1
+	for i, rowIdx := range m.matchRows {
+		if rowIdx == m.cursor {
+			currentMatchIdx = i
+			break
 		}
 	}
 
-	// Wrap around
-	for i := 0; i <= currentIdx; i++ {
-		for _, cell := range m.rows[i] {
-			if strings.Contains(strings.ToLower(cell), query) {
-				m.table.SetCursor(i)
-				m.searchIndex = 0
-				return m
-			}
-		}
-	}
+	// Move to next match
+	nextMatchIdx := (currentMatchIdx + 1) % m.searchCount
+	m.searchIndex = nextMatchIdx
+	m.cursor = m.matchRows[nextMatchIdx]
+	m.ensureCursorVisible()
 
 	return m
 }
@@ -377,34 +583,23 @@ func (m TableModel) PrevSearchMatch() TableModel {
 		return m
 	}
 
-	query := strings.ToLower(m.searchQuery)
-	currentIdx := m.table.Cursor()
-
-	// Find previous match before current position
-	for i := currentIdx - 1; i >= 0; i-- {
-		for _, cell := range m.rows[i] {
-			if strings.Contains(strings.ToLower(cell), query) {
-				m.table.SetCursor(i)
-				if m.searchIndex > 0 {
-					m.searchIndex--
-				} else {
-					m.searchIndex = m.searchCount - 1
-				}
-				return m
-			}
+	// Find current position in matchRows
+	currentMatchIdx := -1
+	for i, rowIdx := range m.matchRows {
+		if rowIdx == m.cursor {
+			currentMatchIdx = i
+			break
 		}
 	}
 
-	// Wrap around
-	for i := len(m.rows) - 1; i >= currentIdx; i-- {
-		for _, cell := range m.rows[i] {
-			if strings.Contains(strings.ToLower(cell), query) {
-				m.table.SetCursor(i)
-				m.searchIndex = m.searchCount - 1
-				return m
-			}
-		}
+	// Move to previous match
+	prevMatchIdx := currentMatchIdx - 1
+	if prevMatchIdx < 0 {
+		prevMatchIdx = m.searchCount - 1
 	}
+	m.searchIndex = prevMatchIdx
+	m.cursor = m.matchRows[prevMatchIdx]
+	m.ensureCursorVisible()
 
 	return m
 }
@@ -414,6 +609,7 @@ func (m TableModel) ClearSearch() TableModel {
 	m.searchQuery = ""
 	m.searchIndex = -1
 	m.searchCount = 0
+	m.matchRows = nil
 	return m
 }
 

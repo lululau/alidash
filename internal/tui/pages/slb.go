@@ -156,6 +156,24 @@ func (m SLBListModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m SLBListModel) Search(query string) SLBListModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBListModel) NextSearchMatch() SLBListModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBListModel) PrevSearchMatch() SLBListModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // SLBListenersModel represents the SLB listeners page
 type SLBListenersModel struct {
 	table          components.TableModel
@@ -244,6 +262,24 @@ func (m SLBListenersModel) Update(msg tea.Msg) (SLBListenersModel, tea.Cmd) {
 // View implements tea.Model
 func (m SLBListenersModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m SLBListenersModel) Search(query string) SLBListenersModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBListenersModel) NextSearchMatch() SLBListenersModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBListenersModel) PrevSearchMatch() SLBListenersModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 
 // SLBVServerGroupsModel represents the SLB VServer groups page
@@ -370,6 +406,24 @@ func (m SLBVServerGroupsModel) View() string {
 	return m.table.View()
 }
 
+// Search searches in the list
+func (m SLBVServerGroupsModel) Search(query string) SLBVServerGroupsModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBVServerGroupsModel) NextSearchMatch() SLBVServerGroupsModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBVServerGroupsModel) PrevSearchMatch() SLBVServerGroupsModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
+}
+
 // SLBBackendServersModel represents the SLB backend servers page
 type SLBBackendServersModel struct {
 	table          components.TableModel
@@ -448,5 +502,23 @@ func (m SLBBackendServersModel) Update(msg tea.Msg) (SLBBackendServersModel, tea
 // View implements tea.Model
 func (m SLBBackendServersModel) View() string {
 	return m.table.View()
+}
+
+// Search searches in the list
+func (m SLBBackendServersModel) Search(query string) SLBBackendServersModel {
+	m.table = m.table.Search(query)
+	return m
+}
+
+// NextSearchMatch moves to next search match
+func (m SLBBackendServersModel) NextSearchMatch() SLBBackendServersModel {
+	m.table = m.table.NextSearchMatch()
+	return m
+}
+
+// PrevSearchMatch moves to previous search match
+func (m SLBBackendServersModel) PrevSearchMatch() SLBBackendServersModel {
+	m.table = m.table.PrevSearchMatch()
+	return m
 }
 
